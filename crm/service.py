@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from db.models import (
@@ -232,6 +232,27 @@ def latest_head_assignment() -> Optional[Dict[str, Any]]:
             if meta.get("head_assignment"):
                 return meta["head_assignment"]
         return None
+    finally:
+        session.close()
+
+
+def list_pipeline_runs(limit: int = 50) -> List[Dict[str, Any]]:
+    session = _session()
+    try:
+        rows = session.scalars(
+            select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(limit)
+        ).all()
+        out: List[Dict[str, Any]] = []
+        for r in rows:
+            d = _row_to_dict(r)
+            n = session.scalar(
+                select(func.count())
+                .select_from(AgentRun)
+                .where(AgentRun.pipeline_run_id == r.id)
+            )
+            d["agent_run_count"] = int(n or 0)
+            out.append(d)
+        return out
     finally:
         session.close()
 

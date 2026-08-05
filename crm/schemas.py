@@ -95,6 +95,10 @@ class PipelineRunOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class PipelineRunListOut(PipelineRunOut):
+    agent_run_count: int = 0
+
+
 class AgentRunCreate(BaseModel):
     pipeline_run_id: UUID
     agent_name: str
