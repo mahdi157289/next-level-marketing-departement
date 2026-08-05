@@ -23,6 +23,7 @@ docker compose exec app alembic upgrade head
 | Agent runs | http://localhost:8000/crm/ui/runs |
 | Agents | http://localhost:8000/crm/ui/agents |
 | Discovery scout | http://localhost:8000/crm/ui/agents/discovery |
+| API | http://localhost:8000/api/docs |
 
 ## Run a scout
 
@@ -34,6 +35,17 @@ docker compose exec app alembic upgrade head
 Flow: **Head assigns tools** → **Discovery searches + writes leads** → CRM updates.
 
 **Finish** cancels an in-flight scout (cooperative between steps).
+
+## Scout HQ API (new)
+
+| Endpoint | Purpose |
+|----------|---------|
+| GET /api/pipeline-runs | Mission board list with agent-run counts |
+| GET /api/stats | Dashboard KPI aggregates |
+| GET /api/scout/status | Active scout + latest missions (topbar badge) |
+| GET/POST /api/scout/threads | List / create chat threads |
+| GET /api/scout/threads/{id}/messages | Chat history |
+| POST /api/scout/threads/{id}/messages | Send a message (SSE stream) |
 
 ## Health checks
 
