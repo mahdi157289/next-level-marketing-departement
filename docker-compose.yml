@@ -1,0 +1,134 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketing_postgres
+    environment:
+      POSTGRES_DB: marketing_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d marketing_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: marketing_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Optional: only if you use Ollama instead of LM Studio
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    container_name: marketing_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 20s
+      timeout: 10s
+      retries: 6
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: marketing_litellm
+    ports:
+      - "4000:4000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config/litellm_config.lmstudio.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen(urllib.request.Request('http://localhost:4000/health', headers={'Authorization': 'Bearer dev-key'}))",
+        ]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+
+  app:
+    build: .
+    container_name: marketing_app
+    ports:
+      - "8000:8000"
+    env_file: .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: postgresql://admin:secret@postgres:5432/marketing_db
+      OPENAI_API_BASE: https://openrouter.ai/api/v1
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+      LITELLM_BASE_URL: http://litellm:4000
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      AGENT_MODEL_DISCOVERY: google/gemma-4-26b-a4b-it:free
+      AGENT_MODEL_HEAD: google/gemma-4-26b-a4b-it:free
+      META_ADS_ACCESS_TOKEN: ${META_ADS_ACCESS_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./static:/app/static
+      - ./:/app
+      # Keep the container's Linux node_modules (bind mount above would shadow
+      # it with host's Windows binaries and break the JS scraper).
+      - /app/tools/google_maps_scraper/node_modules
+    entrypoint: ["python", "scripts/docker_entrypoint.py"]
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+  wordpress:
+    profiles: ["wordpress"]
+    image: wordpress:latest
+    container_name: marketing_wordpress
+    ports:
+      - "8080:80"
+    environment:
+      WORDPRESS_DB_HOST: wordpress_db
+      WORDPRESS_DB_USER: wp_user
+      WORDPRESS_DB_PASSWORD: wp_pass
+      WORDPRESS_DB_NAME: wordpress
+    depends_on:
+      - wordpress_db
+    volumes:
+      - wordpress_data:/var/www/html
+
+  wordpress_db:
+    profiles: ["wordpress"]
+    image: mysql:8-debian
+    container_name: marketing_wpdb
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wp_user
+      MYSQL_PASSWORD: wp_pass
+      MYSQL_ROOT_PASSWORD: root_pass
+    volumes:
+      - wpdb_data:/var/lib/mysql
+
+volumes:
+  postgres_data:
+  ollama_data:
+  wordpress_data:
+  wpdb_data:

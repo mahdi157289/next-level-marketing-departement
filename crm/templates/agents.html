@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Agents{% endblock %}
+{% block content %}
+<h1>Agents</h1>
+<p class="muted">Click an agent to edit mission prompt, tools, and (for Discovery) Start / Finish the scout.</p>
+<table>
+  <thead>
+    <tr>
+      <th>Agent</th>
+      <th>Model</th>
+      <th>Tools</th>
+      <th>Default seed</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for a in agents %}
+    <tr>
+      <td><a href="/crm/ui/agents/{{ a.agent_name }}">{{ a.display_name }}</a>
+        <div class="muted">{{ a.agent_name }}</div>
+      </td>
+      <td>{{ a.model or "settings default" }}</td>
+      <td>{{ a.enabled_tools | join(", ") }}</td>
+      <td class="muted">{{ a.default_seed_query or "—" }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="muted">No agent profiles — run alembic upgrade head</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

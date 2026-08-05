@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Agent runs{% endblock %}
+{% block content %}
+<h1>Agent runs <span class="muted">({{ runs|length }})</span></h1>
+<table>
+  <thead>
+    <tr>
+      <th>Agent</th>
+      <th>Model</th>
+      <th>Status</th>
+      <th>Duration</th>
+      <th>APIs</th>
+      <th>Records</th>
+      <th>Started</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for run in runs %}
+    <tr>
+      <td><a href="/crm/ui/runs/{{ run.id }}">{{ run.agent_name }}</a></td>
+      <td class="muted">{{ run.model or "—" }}</td>
+      <td><span class="badge {{ run.status }}">{{ run.status }}</span></td>
+      <td>{{ run.duration }}</td>
+      <td class="muted">{{ run.apis_short }}</td>
+      <td>{{ run.records_processed or 0 }}</td>
+      <td class="muted">{{ run.started_at }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="muted">No agent runs yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

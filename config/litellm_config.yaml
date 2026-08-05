@@ -1,0 +1,23 @@
+model_list:
+  - model_name: head-model
+    litellm_params:
+      model: ollama/qwen3:14b
+      api_base: http://ollama:11434
+
+  - model_name: discovery-model
+    litellm_params:
+      model: ollama/qwen:1.8b
+      api_base: http://ollama:11434
+
+  - model_name: analysis-model
+    litellm_params:
+      model: ollama/mistral:7b
+      api_base: http://ollama:11434
+
+  - model_name: light-model
+    litellm_params:
+      model: ollama/phi
+      api_base: http://ollama:11434
+
+general_settings:
+  master_key: dev-key

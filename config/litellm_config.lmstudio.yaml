@@ -1,0 +1,35 @@
+# LiteLLM → LM Studio (OpenAI-compatible).
+# LM Studio Local Server ON; base URL matches your setup: http://127.0.0.1:1234/v1
+# From inside Docker Desktop (litellm container), Windows/macOS uses host.docker.internal.
+
+model_list:
+  # Supervisor / heavy reasoning → Qwen3 14B (id from LM Studio GET /v1/models)
+  - model_name: head-model
+    litellm_params:
+      model: openai/qwen3-14b
+      api_base: http://host.docker.internal:1234/v1
+      api_key: lm-studio
+
+  # Fast prospecting / breadth → Gemma 2 9B IT
+  - model_name: discovery-model
+    litellm_params:
+      model: openai/google_-_gemma-2-9b-it
+      api_base: http://host.docker.internal:1234/v1
+      api_key: lm-studio
+
+  # Enrichment / outreach copy quality → Mistral 7B
+  - model_name: analysis-model
+    litellm_params:
+      model: openai/mistralai/mistral-7b-instruct-v0.3
+      api_base: http://host.docker.internal:1234/v1
+      api_key: lm-studio
+
+  # Cheap routing / feedback → Phi-2
+  - model_name: light-model
+    litellm_params:
+      model: openai/phi-2
+      api_base: http://host.docker.internal:1234/v1
+      api_key: lm-studio
+
+general_settings:
+  master_key: dev-key

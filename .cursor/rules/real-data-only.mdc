@@ -1,0 +1,37 @@
+---
+description: No mock/fake CRM or pipeline data — real functional path only
+alwaysApply: true
+---
+
+# Real data only — no CRM pollution
+
+This is a real marketing-department product. The model path is validated. Proof of progress is **real agent extractions visible in the CRM**, not fixtures.
+
+## Hard bans
+
+- Do NOT insert mock, fake, simulated, or placeholder leads into Postgres / CRM
+- Do NOT use `*.example.com`, names like `Tool Test`, `Sim Lead`, `Real verify`, or `source=pytest` / fabricated sources
+- Do NOT write test seed data into the shared `marketing_db` used by Docker `app`
+- Do NOT treat in-memory fakes or simulated agent runs as proof that Discovery → CRM works
+
+## What counts as proof
+
+- Live search (e.g. DuckDuckGo) → real titles, URLs, snippets
+- Real agent runs in `agent_runs` / `pipeline_runs`
+- Real leads with production sources (e.g. `source=discovery`)
+- Inspection via `/crm/ui/leads`, `/crm/ui/runs`, `/crm/leads`, `/crm/agent-runs`
+
+## Tests & scripts
+
+- If writes are required for automated tests, use a **separate test database** — never invent companies in the shared CRM DB
+- Smoke/verification must run the **real pipeline** against live tools/models, or stay read-only
+- Cleanup: delete only non-real rows (`example.com`, `source=pytest`, sim sources) — never wipe real discovery leads without asking
+
+## Default stance
+
+When asked to test or verify: show **real** Docker + model + CRM results. Fake CRM rows are a regression, not progress.
+
+```text
+❌ BAD: crm_write_tool(..., {"name": "Tool Test", "url": "https://tooltest.example.com", "source": "pytest"})
+✅ GOOD: run Discovery → inspect leads created from live search hits in /crm/ui/leads
+```

@@ -1,0 +1,39 @@
+# Secrets — never commit
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+
+# Node
+node_modules/
+tools/google_maps_scraper/node_modules/
+web/node_modules/
+web/dist/
+npm-debug.log*
+
+# Local data / runtime
+data/
+logs/
+*.log
+
+# Docker
+*.pid
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp

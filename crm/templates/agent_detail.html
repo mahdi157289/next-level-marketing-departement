@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}{{ agent.display_name }}{% endblock %}
+{% block content %}
+<h1>{{ agent.display_name }}</h1>
+<p class="muted"><a href="/crm/ui/agents">← Agents</a></p>
+
+{% if flash %}
+<div class="flash {% if flash_err %}err{% endif %}">{{ flash }}</div>
+{% endif %}
+
+  {% if agent.agent_name == "discovery" %}
+<section style="margin-bottom:1.5rem;">
+  <h2 style="font-size:1.05rem;">Scout controls</h2>
+  <p class="muted">Start asks <strong>Head</strong> to assign tools + refine the seed, then Discovery executes that plan.</p>
+  {% if active %}
+  <p>Active run: <code>{{ active.pipeline_run_id }}</code>
+    — <a href="/crm/pipeline-runs/{{ active.pipeline_run_id }}">API status</a>
+  </p>
+  {% else %}
+  <p class="muted">No scout running.</p>
+  {% endif %}
+  {% if latest_run %}
+  <p>Latest discovery run:
+    <span class="badge {{ latest_run.status }}">{{ latest_run.status }}</span>
+    <a href="/crm/ui/runs/{{ latest_run.id }}">view</a>
+  </p>
+  {% endif %}
+  {% if last_assignment %}
+  <p><strong>Last Head assignment</strong>
+    <span class="muted">{{ last_assignment.rationale or "" }}</span><br>
+    seed: <code>{{ last_assignment.seed_query }}</code><br>
+    tools: <code>{{ last_assignment.tools | join(", ") }}</code>
+    {% if last_assignment.skill_gaps %}
+    <br>skill gaps: <code>{{ last_assignment.skill_gaps | join(", ") }}</code>
+    {% endif %}
+  </p>
+  {% endif %}
+  <form method="post" action="/crm/ui/agents/discovery/start" style="display:inline;">
+    <div class="form-row">
+      <label for="seed_query">Goal / seed hint (Start scout)</label>
+      <input type="text" id="seed_query" name="seed_query"
+             value="{{ seed_query or agent.default_seed_query or '' }}" required minlength="2">
+    </div>
+    <div class="form-row">
+      <label for="max_search_results">Max search results</label>
+      <input type="number" id="max_search_results" name="max_search_results" value="5" min="1">
+    </div>
+    <button class="btn" type="submit">Start scout</button>
+  </form>
+  <form method="post" action="/crm/ui/agents/discovery/finish" style="display:inline;">
+    <button class="btn danger" type="submit">Finish (cancel)</button>
+  </form>
+</section>
+{% endif %}
+
+<form method="post" action="/crm/ui/agents/{{ agent.agent_name }}/save">
+  <div class="form-row">
+    <label for="display_name">Display name</label>
+    <input type="text" id="display_name" name="display_name" value="{{ agent.display_name }}">
+  </div>
+  <div class="form-row">
+    <label for="mission_prompt">Mission prompt</label>
+    <textarea id="mission_prompt" name="mission_prompt" required>{{ agent.mission_prompt }}</textarea>
+  </div>
+  <div class="form-row">
+    <label for="model">Model override (blank = settings default)</label>
+    <input type="text" id="model" name="model" value="{{ agent.model or '' }}"
+           placeholder="e.g. discovery-model">
+  </div>
+  {% if agent.agent_name == "discovery" %}
+  <div class="form-row">
+    <label for="default_seed_query">Default seed query</label>
+    <input type="text" id="default_seed_query" name="default_seed_query"
+           value="{{ agent.default_seed_query or '' }}">
+  </div>
+  {% endif %}
+  <div class="form-row">
+    <label>Enabled tools</label>
+    <ul class="tools">
+      {% for t in agent.available_tools %}
+      <li>
+        <label style="font-weight:400;">
+          <input type="checkbox" name="enabled_tools" value="{{ t.id }}"
+            {% if t.id in agent.enabled_tools %}checked{% endif %}>
+          <strong>{{ t.id }}</strong> — {{ t.label }}
+        </label>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if agent.agent_name == "discovery" %}
+    <p class="muted">Discovery requires <code>web_search</code> and <code>llm_chat</code>.</p>
+    {% endif %}
+  </div>
+  <button class="btn" type="submit">Save profile</button>
+  <a class="btn secondary" href="/crm/ui/agents">Cancel</a>
+</form>
+{% endblock %}

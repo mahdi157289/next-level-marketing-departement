@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run.agent_name }}{% endblock %}
+{% block content %}
+<h1>{{ run.agent_name }} <span class="badge {{ run.status }}">{{ run.status }}</span></h1>
+<p class="muted">Pipeline: {{ run.pipeline_run_id }} · Model: {{ run.model or "—" }} · {{ run.duration }}</p>
+
+<h2>Input</h2>
+<pre>{{ run.input_summary or "—" }}</pre>
+
+<h2>Output summary</h2>
+<pre>{{ run.output_summary or "—" }}</pre>
+
+{% if run.output_json %}
+<h2>Output JSON</h2>
+<pre>{{ run.output_json | tojson(indent=2) }}</pre>
+{% endif %}
+
+{% if run.apis_consumed %}
+<h2>APIs consumed</h2>
+<pre>{{ run.apis_consumed | tojson(indent=2) }}</pre>
+{% endif %}
+
+{% if run.error_message %}
+<h2>Error</h2>
+<pre>{{ run.error_message }}</pre>
+{% endif %}
+
+<p><a href="/crm/ui/runs">← Back to runs</a></p>
+{% endblock %}

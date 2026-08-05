@@ -1,0 +1,6 @@
+# Optional — Python >= 3.10 only (see Dockerfile python:3.11-slim).
+# Current Phase D pipeline uses OpenAI SDK + native tools (`workflows/main_pipeline.py`).
+# When migrating to CrewAI hierarchical crews, merge these into the image requirements.
+
+crewai>=0.86.0,<2
+langchain-openai>=0.2.0

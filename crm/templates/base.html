@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}CRM{% endblock %} — Marketing Dept</title>
+  <style>
+    :root { font-family: system-ui, sans-serif; color: #1a1a1a; background: #f6f7f9; }
+    body { margin: 0; padding: 1rem 1.5rem 2rem; max-width: 1200px; }
+    nav { margin-bottom: 1.25rem; }
+    nav a { margin-right: 1rem; color: #0b5fff; text-decoration: none; }
+    nav a:hover { text-decoration: underline; }
+    h1 { font-size: 1.35rem; margin: 0 0 1rem; }
+    table { width: 100%; border-collapse: collapse; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    th, td { text-align: left; padding: .55rem .65rem; border-bottom: 1px solid #e8eaed; font-size: .9rem; vertical-align: top; }
+    th { background: #eef1f6; font-weight: 600; }
+    tr:hover td { background: #fafbfc; }
+    .muted { color: #666; font-size: .85rem; }
+    .badge { display: inline-block; padding: .15rem .45rem; border-radius: 4px; font-size: .75rem; background: #e8f0fe; }
+    .badge.failed { background: #fce8e6; color: #c5221f; }
+    .badge.success { background: #e6f4ea; color: #137333; }
+    .badge.cancelled { background: #eceff1; color: #546e7a; }
+    pre { background: #fff; padding: .75rem; overflow: auto; font-size: .8rem; border: 1px solid #e8eaed; }
+    a { color: #0b5fff; }
+    .form-row { margin-bottom: 1rem; }
+    label { display: block; font-weight: 600; font-size: .9rem; margin-bottom: .35rem; }
+    textarea, input[type=text], input[type=number] {
+      width: 100%; max-width: 720px; padding: .5rem .6rem; border: 1px solid #c9ced6;
+      border-radius: 4px; font: inherit; box-sizing: border-box;
+    }
+    textarea { min-height: 140px; font-family: ui-monospace, Consolas, monospace; font-size: .85rem; }
+    .tools { list-style: none; padding: 0; margin: 0; }
+    .tools li { margin: .35rem 0; }
+    .btn {
+      display: inline-block; margin-right: .5rem; margin-top: .25rem; padding: .45rem .9rem;
+      border: none; border-radius: 4px; background: #0b5fff; color: #fff; font: inherit; cursor: pointer;
+      text-decoration: none;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn.secondary { background: #5f6368; }
+    .btn.danger { background: #c5221f; }
+    .flash { padding: .65rem .8rem; margin-bottom: 1rem; background: #e6f4ea; border: 1px solid #ceead6; }
+    .flash.err { background: #fce8e6; border-color: #f5c2c0; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/crm/ui/leads">Leads</a>
+    <a href="/crm/ui/runs">Agent runs</a>
+    <a href="/crm/ui/agents">Agents</a>
+    <a href="/docs">API docs</a>
+  </nav>
+  {% block content %}{% endblock %}
+</body>
+</html>
