@@ -22,6 +22,11 @@ def api_list_pipeline_runs(limit: int = 50):
     return service.list_pipeline_runs(limit=limit)
 
 
+@router.get("/stats")
+def api_stats():
+    return service.compute_stats()
+
+
 @router.get("/scout/threads", response_model=List[schemas.ScoutThreadOut])
 def api_list_threads(limit: int = 50):
     return service.list_scout_threads(limit=limit)

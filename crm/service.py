@@ -257,6 +257,84 @@ def list_pipeline_runs(limit: int = 50) -> List[Dict[str, Any]]:
         session.close()
 
 
+def compute_stats() -> Dict[str, Any]:
+    session = _session()
+    try:
+        today = datetime.utcnow().date()
+        start_today = datetime(today.year, today.month, today.day)
+        leads_total = session.scalar(select(func.count()).select_from(Lead)) or 0
+        leads_by_status: Dict[str, int] = {}
+        for st in LeadStatus:
+            leads_by_status[st.value] = 0
+        for (status, cnt) in session.execute(
+            select(Lead.status, func.count()).group_by(Lead.status)
+        ):
+            leads_by_status[_enum_val(status)] = int(cnt)
+        avg_score = session.scalar(select(func.avg(Lead.lead_score))) or 0.0
+        runs_today = (
+            session.scalar(
+                select(func.count()).select_from(PipelineRun).where(PipelineRun.started_at >= start_today)
+            )
+            or 0
+        )
+        total_runs = session.scalar(select(func.count()).select_from(PipelineRun)) or 0
+        success_runs = (
+            session.scalar(
+                select(func.count())
+                .select_from(PipelineRun)
+                .where(PipelineRun.status == RunStatus.success)
+            )
+            or 0
+        )
+        run_success_rate = round((success_runs / total_runs * 100.0) if total_runs else 0.0, 1)
+        recent_rows = session.scalars(
+            select(PipelineRun).order_by(PipelineRun.started_at.desc()).limit(5)
+        ).all()
+        recent_runs = [
+            {
+                "id": str(r.id),
+                "trigger": r.trigger,
+                "seed_query": r.seed_query,
+                "status": _enum_val(r.status),
+                "started_at": _iso_str(r.started_at),
+            }
+            for r in recent_rows
+        ]
+        active, seed = _scout_status()
+        return {
+            "leads_total": int(leads_total),
+            "leads_by_status": leads_by_status,
+            "leads_avg_score": round(float(avg_score or 0.0), 1),
+            "runs_today": int(runs_today),
+            "run_success_rate": run_success_rate,
+            "recent_runs": recent_runs,
+            "scout_active": active,
+            "scout_last_seed": seed,
+        }
+    finally:
+        session.close()
+
+
+def _iso_str(v: Any) -> Optional[str]:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return str(v)
+
+
+def _scout_status() -> tuple:
+    try:
+        from crm import runner
+
+        active = runner.get_active()
+        if active:
+            return True, active.get("seed_query")
+    except Exception:
+        pass
+    return False, None
+
+
 # --- Agent runs ---
 
 
