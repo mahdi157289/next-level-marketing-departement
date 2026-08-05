@@ -73,18 +73,6 @@ def _tool_callable(name: str) -> Optional[Callable[..., Any]]:
     return registry.resolve_callable(name)
 
 
-def _run_native_tools(messages: List[Dict[str, Any]], tools: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """One native function-calling round; returns tool-call dicts."""
-    resp = lm_client.chat_completion_tools(
-        _load_scout_profile()["model"],
-        messages,
-        tools=tools,
-        temperature=0.2,
-        max_tokens=1024,
-    )
-    return resp.get("tool_calls") or []
-
-
 def _run_fallback_tools(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """JSON-decision fallback when the model rejects native tools."""
     user_body = _FALLBACK_DECISION_PROMPT + "\n\nLast message:\n" + (messages[-1].get("content") or "")
