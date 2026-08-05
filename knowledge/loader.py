@@ -1,5 +1,7 @@
 """Load company knowledge base for agent prompts."""
 
+from __future__ import annotations
+
 from pathlib import Path
 
 _KB: str | None = None
