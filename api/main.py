@@ -10,7 +10,20 @@ from crm.router import router as crm_router
 from crm.ui import router as crm_ui_router
 from db.session import get_db
 
-app = FastAPI(title="AI Marketing Department API", version="0.1.0")
+
+def _unique_operation_id(route) -> str:
+    method = sorted(route.methods)[0].lower() if route.methods else "get"
+    segments = [seg for seg in route.path.split("/") if seg]
+    cleaned = [seg.replace("{", "").replace("}", "").replace("-", "_") for seg in segments]
+    path_part = "_".join(cleaned) if cleaned else "root"
+    return f"{method}_{path_part}"
+
+
+app = FastAPI(
+    title="AI Marketing Department API",
+    version="0.1.0",
+    generate_unique_id_function=_unique_operation_id,
+)
 app.include_router(crm_router, prefix="/crm")
 app.include_router(crm_ui_router, prefix="/crm")
 app.include_router(api_router, prefix="/api")

@@ -26,6 +26,21 @@ def test_api_health(client):
     assert r.status_code == 200, r.text
 
 
+def test_openapi_unique_operation_ids():
+    from api.main import app
+
+    schema = app.openapi()
+    ids = []
+    for path, methods in schema["paths"].items():
+        for method, op in methods.items():
+            if isinstance(op, dict) and "operationId" in op:
+                ids.append(op["operationId"])
+    dupes = len(ids) - len(set(ids))
+    print(f"operationId unique={len(set(ids))} total={len(ids)} dupes={dupes}")
+    assert dupes == 0
+    assert len(ids) > 0
+
+
 def test_api_leads(client):
     r = client.get("/api/leads?limit=5")
     assert r.status_code == 200, r.text
