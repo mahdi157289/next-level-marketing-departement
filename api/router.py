@@ -1,6 +1,8 @@
 """Unified /api router for the SPA — includes the CRM REST router + new endpoints."""
 from __future__ import annotations
 
+import asyncio
+import json
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
@@ -35,18 +37,29 @@ def api_scout_status():
 
 @router.post("/scout/threads/{thread_id}/messages")
 def api_scout_chat(thread_id: str, body: ScoutMessageCreate):
-    from crm import scout
+    return _scout_chat_events(thread_id, body.content)
 
-    import asyncio
+
+def _scout_chat_events(
+    thread_id: str, content: str, profile=None
+) -> StreamingResponse:
+    """SSE stream for a Scout chat turn.
+
+    ``profile`` defaults to the real ``scout._load_scout_profile`` (resolved lazily by
+    ``run_scout_turn``) when ``None``; pass an explicit profile to inject / avoid a
+    profile lookup.
+    """
+    from crm import scout
 
     async def gen():
         try:
             yield "event: start\ndata: {}\n\n"
+            run_kwargs = {}
+            if profile is not None:
+                run_kwargs["profile"] = profile
             result = await asyncio.to_thread(
-                scout.run_scout_turn, thread_id, body.content
+                scout.run_scout_turn, thread_id, content, **run_kwargs
             )
-            import json
-
             for i, chunk in enumerate(_chunk_text(result["assistant"], 80)):
                 payload = {"delta": chunk, "index": i}
                 yield f"event: delta\ndata: {json.dumps(payload)}\n\n"
@@ -57,8 +70,6 @@ def api_scout_chat(thread_id: str, body: ScoutMessageCreate):
             }
             yield f"event: done\ndata: {json.dumps(payload)}\n\n"
         except Exception as exc:
-            import json
-
             yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
 
     return StreamingResponse(gen(), media_type="text/event-stream")

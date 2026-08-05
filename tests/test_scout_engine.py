@@ -157,3 +157,51 @@ def test_enabled_tools_gate(monkeypatch):
     web = [r for r in tool_msgs if r["kwargs"].get("tool_name") == "web_search"]
     assert len(web) == 1
     assert web[0]["kwargs"]["tool_result"]["error"] is None
+
+
+def test_persistence_order(monkeypatch):
+    """Messages are persisted user -> tools -> assistant."""
+    from crm import scout
+
+    profile = _FakeProfile()
+    monkeypatch.setattr(scout.service, "get_agent_profile", lambda name: profile)
+
+    recorded = []
+
+    def fake_add(*a, **kw):
+        role = a[1] if len(a) > 1 else kw.get("role")
+        recorded.append(role)
+        return {"id": f"m{len(recorded)}"}
+
+    monkeypatch.setattr(scout.service, "add_scout_message", fake_add)
+    monkeypatch.setattr(scout.service, "list_scout_messages", lambda tid, limit=200: [])
+
+    counter = {"n": 0}
+
+    def fake_tools(model, messages, tools, **kw):
+        counter["n"] += 1
+        if counter["n"] == 1:
+            return {
+                "content": "",
+                "tool_calls": [
+                    {"id": "c1", "name": "web_search", "arguments": {"query": "plumber"}},
+                ],
+            }
+        return {"content": "done", "tool_calls": []}
+
+    monkeypatch.setattr(scout.lm_client, "chat_completion_tools", fake_tools)
+    monkeypatch.setattr(scout.lm_client, "chat_completion", lambda *a, **kw: "done")
+    monkeypatch.setattr(
+        scout.registry,
+        "resolve_callable",
+        lambda name: (lambda **kw: [{"title": "A"}]) if name == "web_search" else None,
+    )
+
+    scout.run_scout_turn("thread-order", "hi")
+
+    roles = recorded
+    assert roles[0] == "user"
+    assert roles[-1] == "assistant"
+    assert "tool" in roles
+    first_assistant = roles.index("assistant")
+    assert all(r == "tool" for r in roles[1:first_assistant])
