@@ -99,6 +99,28 @@ class PipelineRunListOut(PipelineRunOut):
     agent_run_count: int = 0
 
 
+class ScoutThreadOut(BaseModel):
+    id: UUID
+    title: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class ScoutMessageOut(BaseModel):
+    id: UUID
+    thread_id: UUID
+    role: str
+    content: Optional[str] = None
+    tool_name: Optional[str] = None
+    tool_args: Optional[Dict[str, Any]] = None
+    tool_result: Optional[Any] = None
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
 class AgentRunCreate(BaseModel):
     pipeline_run_id: UUID
     agent_name: str

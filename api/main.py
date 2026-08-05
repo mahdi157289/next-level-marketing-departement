@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from api.router import router as api_router
 from crm.client import AgentRunRecorder
 from crm.router import router as crm_router
 from crm.ui import router as crm_ui_router
@@ -12,6 +13,7 @@ from db.session import get_db
 app = FastAPI(title="AI Marketing Department API", version="0.1.0")
 app.include_router(crm_router, prefix="/crm")
 app.include_router(crm_ui_router, prefix="/crm")
+app.include_router(api_router, prefix="/api")
 
 
 @app.get("/", include_in_schema=False)
