@@ -61,6 +61,45 @@ def chat_completion(
     return _extract_message_text(msg)
 
 
+def chat_completion_tools(
+    model: str,
+    messages: List[Dict[str, Any]],
+    tools: List[Dict[str, Any]],
+    *,
+    temperature: float = 0.35,
+    max_tokens: int = 1024,
+) -> Dict[str, Any]:
+    """Chat completion with OpenAI function-calling; returns content + parsed tool calls."""
+    client = _get_client()
+    kwargs: Dict[str, Any] = {
+        "model": model,
+        "messages": messages,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
+    }
+    if tools:
+        kwargs["tools"] = tools
+    r = client.chat.completions.create(**kwargs)
+    msg = r.choices[0].message
+    content = _extract_message_text(msg)
+    tool_calls: List[Dict[str, Any]] = []
+    for tc in getattr(msg, "tool_calls", None) or []:
+        fn = getattr(tc, "function", None)
+        if fn is None:
+            continue
+        args_raw = getattr(fn, "arguments", None) or "{}"
+        try:
+            import json
+
+            args = json.loads(args_raw)
+        except Exception:
+            args = {}
+        tool_calls.append(
+            {"id": getattr(tc, "id", None), "name": getattr(fn, "name", ""), "arguments": args}
+        )
+    return {"content": content, "tool_calls": tool_calls}
+
+
 def ensure_llm_reachable(timeout_s: float = 3.0) -> tuple[bool, str]:
     """Fail fast if LM Studio (or the chat proxy path) cannot serve models.
 
