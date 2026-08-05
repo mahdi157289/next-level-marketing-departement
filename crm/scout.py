@@ -104,10 +104,13 @@ def _run_fallback_tools(messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         return []
 
 
-def _execute_tool(call: Dict[str, Any]) -> Dict[str, Any]:
+def _execute_tool(call: Dict[str, Any], enabled: Optional[List[str]] = None) -> Dict[str, Any]:
     name = call.get("name") or ""
-    fn = _tool_callable(name)
     args = call.get("arguments") or {}
+    enabled_set = set(enabled or [])
+    if enabled_set and name not in enabled_set:
+        return {"tool_name": name, "args": args, "result": None, "error": f"tool {name} not enabled"}
+    fn = _tool_callable(name)
     if fn is None:
         return {"tool_name": name, "args": args, "result": None, "error": f"tool {name} not available"}
     try:
@@ -122,8 +125,16 @@ def run_scout_turn(
     user_text: str,
     *,
     max_tool_iterations: int = _MAX_TOOL_ITERATIONS,
+    profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    profile = _load_scout_profile()
+    if profile is None:
+        profile = _load_scout_profile()
+    enabled_tools = profile.get("enabled_tools") or []
+    enabled_set = set(enabled_tools)
+    if enabled_set:
+        advertised_tools = [t for t in _TOOLS_SCHEMA if t["function"]["name"] in enabled_set]
+    else:
+        advertised_tools = _TOOLS_SCHEMA
     service.add_scout_message(thread_id, "user", content=user_text)
 
     history = service.list_scout_messages(thread_id, limit=200)
@@ -145,7 +156,7 @@ def run_scout_turn(
             resp = lm_client.chat_completion_tools(
                 profile["model"],
                 messages,
-                tools=_TOOLS_SCHEMA,
+                tools=advertised_tools,
                 temperature=0.2,
                 max_tokens=1024,
             )
@@ -160,7 +171,7 @@ def run_scout_turn(
 
         tool_calls_made += 1
         for call in tool_calls:
-            outcome = _execute_tool(call)
+            outcome = _execute_tool(call, enabled=enabled_tools)
             msg = service.add_scout_message(
                 thread_id,
                 "tool",
