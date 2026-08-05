@@ -10,7 +10,7 @@ from crm import schemas, service
 from crm.router import router as crm_router
 
 router = APIRouter()
-router.include_router(crm_router, prefix="/crm")  # exposes /api/crm/*
+router.include_router(crm_router)  # exposes /api/* inherited CRM routes
 
 
 class ScoutThreadCreate(BaseModel):

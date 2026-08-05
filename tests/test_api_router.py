@@ -21,13 +21,13 @@ def client():
     return TestClient(app)
 
 
-def test_api_health_and_crm_prefix(client):
-    r = client.get("/api/crm/health")
+def test_api_health(client):
+    r = client.get("/api/health")
     assert r.status_code == 200, r.text
 
 
-def test_api_leads_via_crm_router(client):
-    r = client.get("/api/crm/leads?limit=5")
+def test_api_leads(client):
+    r = client.get("/api/leads?limit=5")
     assert r.status_code == 200, r.text
     assert isinstance(r.json(), list)
 
