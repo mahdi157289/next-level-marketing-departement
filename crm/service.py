@@ -9,7 +9,17 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
-from db.models import AgentProfile, AgentRun, Lead, LeadEvent, LeadStatus, PipelineRun, RunStatus
+from db.models import (
+    AgentProfile,
+    AgentRun,
+    Lead,
+    LeadEvent,
+    LeadStatus,
+    PipelineRun,
+    RunStatus,
+    ScoutMessage,
+    ScoutThread,
+)
 from db.session import SessionLocal
 from tools.registry import TOOL_CATALOG, catalog_for_agent, validate_tool_ids
 
@@ -375,6 +385,73 @@ def update_agent_profile(agent_name: str, data: Dict[str, Any]) -> Optional[Dict
         d = _row_to_dict(row)
         d["available_tools"] = catalog_for_agent(agent_name)
         return d
+    finally:
+        session.close()
+
+
+# --- Scout chat ---
+
+
+def create_scout_thread(title: Optional[str] = None) -> Dict[str, Any]:
+    session = _session()
+    try:
+        thread = ScoutThread(id=uuid.uuid4(), title=title or "New scout thread")
+        session.add(thread)
+        session.commit()
+        session.refresh(thread)
+        return _row_to_dict(thread)
+    finally:
+        session.close()
+
+
+def list_scout_threads(limit: int = 50) -> List[Dict[str, Any]]:
+    session = _session()
+    try:
+        rows = session.scalars(
+            select(ScoutThread).order_by(ScoutThread.created_at.desc()).limit(limit)
+        ).all()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        session.close()
+
+
+def add_scout_message(
+    thread_id: str,
+    role: str,
+    content: Optional[str] = None,
+    tool_name: Optional[str] = None,
+    tool_args: Optional[Dict[str, Any]] = None,
+    tool_result: Optional[Any] = None,
+) -> Dict[str, Any]:
+    session = _session()
+    try:
+        msg = ScoutMessage(
+            id=uuid.uuid4(),
+            thread_id=uuid.UUID(thread_id),
+            role=role,
+            content=content,
+            tool_name=tool_name,
+            tool_args=tool_args,
+            tool_result=tool_result,
+        )
+        session.add(msg)
+        session.commit()
+        session.refresh(msg)
+        return _row_to_dict(msg)
+    finally:
+        session.close()
+
+
+def list_scout_messages(thread_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+    session = _session()
+    try:
+        rows = session.scalars(
+            select(ScoutMessage)
+            .where(ScoutMessage.thread_id == uuid.UUID(thread_id))
+            .order_by(ScoutMessage.created_at.asc())
+            .limit(limit)
+        ).all()
+        return [_row_to_dict(r) for r in rows]
     finally:
         session.close()
 
