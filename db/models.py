@@ -169,3 +169,25 @@ class LeadEvent(Base):
     event_type = Column(String(32), nullable=False)
     payload = Column(JSON)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
+
+
+class ScoutThread(Base):
+    __tablename__ = "scout_threads"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(Text)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+    updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ScoutMessage(Base):
+    __tablename__ = "scout_messages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    thread_id = Column(UUID(as_uuid=True), nullable=False)
+    role = Column(String(16), nullable=False)
+    content = Column(Text)
+    tool_name = Column(String(64))
+    tool_args = Column(JSON)
+    tool_result = Column(JSON)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
