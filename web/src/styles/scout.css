@@ -92,6 +92,11 @@
   margin-bottom: 0.4rem;
 }
 
+.tool-card-icon {
+  display: inline-block;
+  margin-right: 0.35rem;
+}
+
 .tool-card pre {
   margin: 0.3rem 0;
   font-size: 0.78rem;

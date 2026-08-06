@@ -30,11 +30,17 @@ export async function streamScoutTurn(
   content: string,
   handlers: ScoutTurnHandlers,
 ): Promise<void> {
-  const res = await fetch(`/api/scout/threads/${threadId}/messages`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api/scout/threads/${threadId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+  } catch (err) {
+    handlers.onError?.(err instanceof Error ? err.message : "Network error");
+    return;
+  }
   if (!res.ok) {
     const text = await res.text();
     handlers.onError?.(text || `HTTP ${res.status}`);
@@ -48,7 +54,14 @@ export async function streamScoutTurn(
   const decoder = new TextDecoder();
   let buffer = "";
   for (;;) {
-    const { done, value } = await reader.read();
+    let value: Uint8Array | undefined;
+    let done: boolean;
+    try {
+      ({ done, value } = await reader.read());
+    } catch (err) {
+      handlers.onError?.(err instanceof Error ? err.message : "Stream error");
+      return;
+    }
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
     const { frames, rest } = takeFrames(buffer);
