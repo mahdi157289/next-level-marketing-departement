@@ -1,0 +1,16 @@
+:root {
+  --bg: #0b0f17;
+  --surface: #131926;
+  --border: #1e2735;
+  --text: #e6edf7;
+  --muted: #8b98ad;
+  --accent: #7c3aed;
+  --accent-2: #d946ef;
+  --cyan: #22d3ee;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --radius: 8px;
+  --sidebar-w: 220px;
+  --gradient: linear-gradient(135deg, #7c3aed, #d946ef);
+}
