@@ -69,7 +69,7 @@ export function ScoutChat() {
                 </div>
               );
             })}
-            {assistantText ? <div className="chat-bubble assistant">{assistantText}</div> : null}
+            {streaming && assistantText ? <div className="chat-bubble assistant">{assistantText}</div> : null}
             {streaming ? <div className="muted">Scout is thinking{toolCalls > 0 ? ` · ${toolCalls} tool call(s)` : ""}…</div> : null}
             {error ? <div className="flash err">{error}</div> : null}
           </>
