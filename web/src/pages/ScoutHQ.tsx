@@ -1,3 +1,11 @@
+import { MissionBoard } from "../components/MissionBoard";
+import { ScoutChat } from "../components/ScoutChat";
+
 export default function ScoutHQ() {
-  return <div className="panel muted">Scout HQ — coming soon.</div>;
+  return (
+    <div className="scout-hq">
+      <MissionBoard />
+      <ScoutChat />
+    </div>
+  );
 }
