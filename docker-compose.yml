@@ -99,6 +99,14 @@ services:
     entrypoint: ["python", "scripts/docker_entrypoint.py"]
     command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
 
+  web:
+    build: ./web
+    container_name: marketing_web
+    ports:
+      - "3000:80"
+    depends_on:
+      - app
+
   wordpress:
     profiles: ["wordpress"]
     image: wordpress:latest

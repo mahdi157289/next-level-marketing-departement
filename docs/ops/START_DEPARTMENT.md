@@ -24,6 +24,8 @@ docker compose exec app alembic upgrade head
 | Agents | http://localhost:8000/crm/ui/agents |
 | Discovery scout | http://localhost:8000/crm/ui/agents/discovery |
 | API | http://localhost:8000/api/docs |
+| SPA (React) | http://localhost:3000 |
+| Scout HQ (chat + missions) | http://localhost:3000/scout-hq |
 
 ## Run a scout
 
@@ -46,6 +48,8 @@ Flow: **Head assigns tools** → **Discovery searches + writes leads** → CRM u
 | GET/POST /api/scout/threads | List / create chat threads |
 | GET /api/scout/threads/{id}/messages | Chat history |
 | POST /api/scout/threads/{id}/messages | Send a message (SSE stream) |
+
+The React SPA is served by the `web` container on port 3000 (dev: `cd web && npm run dev`, proxying `/api` to `localhost:8000`).
 
 ## Health checks
 
