@@ -56,4 +56,22 @@ describe("useScoutChat", () => {
 
     await waitFor(() => expect(result.current.error).toBe("engine blew up"));
   });
+
+  it("fires onTurnError on an error event", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      body: sseStream([
+        "event: error\ndata: {\"detail\":\"boom\"}\n\n",
+      ]),
+    }));
+    const onTurnError = vi.fn();
+    const { result } = renderHook(() => useScoutChat("t1", undefined, onTurnError));
+
+    act(() => {
+      void result.current.send("hi");
+    });
+
+    await waitFor(() => expect(onTurnError).toHaveBeenCalledTimes(1));
+    expect(result.current.error).toBe("boom");
+  });
 });

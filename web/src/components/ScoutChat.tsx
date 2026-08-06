@@ -25,11 +25,14 @@ export function ScoutChat() {
     },
   });
 
+  const invalidateMessages = () => {
+    qc.invalidateQueries({ queryKey: ["messages", threadId] });
+  };
+
   const { streaming, assistantText, error, toolCalls, send } = useScoutChat(
     threadId,
-    () => {
-      qc.invalidateQueries({ queryKey: ["messages", threadId] });
-    },
+    invalidateMessages,
+    invalidateMessages,
   );
 
   useEffect(() => {

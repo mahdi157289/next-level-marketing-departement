@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { streamScoutTurn } from "../api/scout";
 
-export function useScoutChat(threadId: string | null, onTurnDone?: () => void) {
+export function useScoutChat(threadId: string | null, onTurnDone?: () => void, onTurnError?: () => void) {
   const [streaming, setStreaming] = useState(false);
   const [assistantText, setAssistantText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -22,13 +22,16 @@ export function useScoutChat(threadId: string | null, onTurnDone?: () => void) {
             setToolCalls(payload.tool_calls);
             onTurnDone?.();
           },
-          onError: (detail) => setError(detail),
+          onError: (detail) => {
+            setError(detail);
+            onTurnError?.();
+          },
         });
       } finally {
         setStreaming(false);
       }
     },
-    [threadId, onTurnDone],
+    [threadId, onTurnDone, onTurnError],
   );
 
   return { streaming, assistantText, error, toolCalls, send };
