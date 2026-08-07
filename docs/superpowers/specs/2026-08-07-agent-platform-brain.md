@@ -14,7 +14,7 @@
 | P2 | Per-agent encrypted secrets (`agent_secrets`, Fernet) + scoped persistent memory (`agent_memory`) | none | **done** (committed cac34d4, live-verified; migrated container DB) |
 | P3 | RAG (pgvector) brain — local Postgres `vector` extension | postgres image → `pgvector/pgvector:pg16` + `CREATE EXTENSION` (DB restarted) | **done** (committed b217bcb; pgvector swap + data preserved, live-verified) |
 | P4 | Graphify (JanusGraph+BerkeleyDB) brain + scoped retrieval + cache + metrics | add `janusgraph` service | planned |
-| P5 | Provider/API-key inputs (hashed) + Tools/APIs/MCPs catalog UI | none | planned |
+| P5 | Provider/API-key inputs (hashed) + Tools/APIs/MCPs catalog UI | none | **done** (committed 76c0946; sha256 fingerprint + encrypted-at-rest keys, Providers panel on agent detail, `/tools` catalog, live-verified) |
 | P6 | Orchestration + monitoring | scoped retrieval filters, Redis cache, async batch dispatch, `brain_query_metrics` | planned |
 
 P1 is built **first** because it fixes the core complaint (vague persona + "tools not listed") with zero infra risk on the live, working stack. P3/P4 are the only phases that touch running containers and are gated on your go-ahead (DB restart / new JVM container).
