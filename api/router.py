@@ -11,9 +11,11 @@ from pydantic import BaseModel
 
 from crm import schemas, service
 from crm.router import router as crm_router
+from api.brain_router import router as brain_router
 
 router = APIRouter()
 router.include_router(crm_router)  # exposes /api/* inherited CRM routes
+router.include_router(brain_router)  # exposes /api/brain/*
 
 
 class ScoutThreadCreate(BaseModel):

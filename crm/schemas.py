@@ -251,4 +251,11 @@ class DiscoveryFinishOut(BaseModel):
     status: str
 
 
+class BrainQueryRequest(BaseModel):
+    agent_name: str
+    domain: str
+    query: str
+    limit: int = 5
+
+
 LeadDetailOut.model_rebuild()
