@@ -10,13 +10,14 @@
 
 | Phase | Scope | Container change | Status |
 |---|---|---|---|
-| P1 | System-prompt `agent.md` (file-backed) + loader; dispatch w/ mission `meta`; secret-store table scaffold | none | **in progress** |
-| P2 | Per-agent persistent memory + lesson reports | none | planned |
-| P3 | RAG (pgvector) brain — local Postgres `vector` extension | postgres image → `pgvector/pgvector:pg16` + `CREATE EXTENSION` | planned |
+| P1 | System-prompt `agent.md` (file-backed) + loader; dispatch w/ mission `meta`; secret-store scaffold | none | **done** (committed e93559b, live-verified) |
+| P2 | Per-agent persistent memory + `agent_secrets` table + lesson reports | none | planned |
+| P3 | RAG (pgvector) brain — local Postgres `vector` extension | postgres image → `pgvector/pgvector:pg16` + `CREATE EXTENSION` (DB restart) | planned |
 | P4 | Graphify (JanusGraph+BerkeleyDB) brain + scoped retrieval + cache + metrics | add `janusgraph` service | planned |
-| P5 | Provider/API-key inputs (hashed) + catalog UI | none | planned |
+| P5 | Provider/API-key inputs (hashed) + Tools/APIs/MCPs catalog UI | none | planned |
+| P6 | Orchestration + monitoring | scoped retrieval filters, Redis cache, async batch dispatch, `brain_query_metrics` | planned |
 
-P1 is built **first** because it fixes the core complaint (vague persona + "tools not listed") with zero infra risk on the live, working stack.
+P1 is built **first** because it fixes the core complaint (vague persona + "tools not listed") with zero infra risk on the live, working stack. P3/P4 are the only phases that touch running containers and are gated on your go-ahead (DB restart / new JVM container).
 
 ---
 

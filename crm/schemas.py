@@ -182,6 +182,24 @@ class AgentProfileUpdate(BaseModel):
     default_seed_query: Optional[str] = None
 
 
+class AgentSecretSet(BaseModel):
+    kind: str
+    name: str
+    value: str
+
+
+class AgentSecretOut(BaseModel):
+    agent_name: str
+    kind: str
+    name: str
+
+
+class AgentMemoryIn(BaseModel):
+    scope: str = "shared"
+    key: str
+    value: str
+
+
 class DiscoveryStartRequest(BaseModel):
     seed_query: Optional[str] = Field(None, min_length=2)
     max_search_results: int = Field(5, ge=1)

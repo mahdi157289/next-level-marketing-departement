@@ -138,6 +138,43 @@ def patch_agent(agent_name: str, body: schemas.AgentProfileUpdate):
     return row
 
 
+@router.get("/agents/{agent_name}/secrets", response_model=list[schemas.AgentSecretOut])
+def list_secrets(agent_name: str):
+    return service.list_agent_secrets(agent_name)
+
+
+@router.post("/agents/{agent_name}/secrets", response_model=schemas.AgentSecretOut)
+def upsert_secret(agent_name: str, body: schemas.AgentSecretSet):
+    service.set_agent_secret(agent_name, body.kind, body.name, body.value)
+    return {"agent_name": agent_name, "kind": body.kind, "name": body.name}
+
+
+@router.get("/agents/{agent_name}/secrets/{kind}/resolve")
+def resolve_secret(agent_name: str, kind: str):
+    value = service.resolve_agent_secret(agent_name, kind)
+    if value is None:
+        raise HTTPException(status_code=404, detail="Secret not found")
+    name = service.get_secret_name(agent_name, kind)
+    return {"kind": kind, "name": name, "value": value}
+
+
+@router.delete("/agents/{agent_name}/secrets/{kind}", status_code=204)
+def delete_secret(agent_name: str, kind: str):
+    if not service.delete_agent_secret(agent_name, kind):
+        raise HTTPException(status_code=404, detail="Secret not found")
+    return None
+
+
+@router.post("/agents/{agent_name}/memory", response_model=dict)
+def add_memory(agent_name: str, body: schemas.AgentMemoryIn):
+    return service.add_memory(agent_name, body.scope, body.key, body.value)
+
+
+@router.get("/agents/{agent_name}/memory", response_model=list[dict])
+def get_memory(agent_name: str, scope: Optional[str] = None, limit: int = 100):
+    return service.list_memory(agent_name, scope=scope, limit=limit)
+
+
 @router.post("/agents/discovery/start", response_model=schemas.DiscoveryStartOut)
 def start_discovery(body: schemas.DiscoveryStartRequest):
     from crm import runner

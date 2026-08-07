@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, Column, Enum, Float, Integer, String, Text, TIMESTAMP
+from sqlalchemy import JSON, Boolean, Column, Enum, Float, Index, Integer, String, Text, TIMESTAMP
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase
 
@@ -128,6 +128,44 @@ class AgentProfile(Base):
     model = Column(String(128))
     default_seed_query = Column(Text)
     updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentSecret(Base):
+    """Encrypted provider/API-key secrets scoped per agent + provider.
+
+    ``kind`` is the logical provider (e.g. ``openai``, ``serpapi``); ``name`` is
+    a human label (e.g. ``OPENAI_API_KEY``). Secrets at rest are Fernet tokens;
+    ``decrypt_secret`` is used by the provider loader.
+    """
+
+    __tablename__ = "agent_secrets"
+
+    agent_name = Column(String(64), primary_key=True)
+    kind = Column(String(64), primary_key=True)
+    name = Column(String(128), nullable=False)
+    value = Column("value", Text, nullable=False)  # stores Fernet token
+    updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class AgentMemory(Base):
+    """Per-agent persistent memory — one row per recalled fact / lesson.
+
+    ``scope`` partitions memory (e.g. ``campaign:<id>``, ``domain``,
+    ``shared``). Queries scoped to a domain read only the matching scopes.
+    """
+
+    __tablename__ = "agent_memory"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    agent_name = Column(String(64), nullable=False)
+    scope = Column(String(128), nullable=False, default="shared")
+    key = Column(String(256), nullable=False)
+    value = Column(Text, nullable=False)
+    created_at = Column(TIMESTAMP, default=datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_agent_memory_agent_scope", "agent_name", "scope"),
+    )
 
 
 class PipelineRun(Base):

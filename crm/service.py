@@ -6,12 +6,14 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, delete
 from sqlalchemy.orm import Session
 
 from db.models import (
+    AgentMemory,
     AgentProfile,
     AgentRun,
+    AgentSecret,
     Lead,
     LeadEvent,
     LeadStatus,
@@ -21,6 +23,7 @@ from db.models import (
     ScoutThread,
 )
 from db.session import SessionLocal
+from db.secrets import decrypt_secret, encrypt_secret
 from tools.registry import TOOL_CATALOG, catalog_for_agent, validate_tool_ids
 
 
@@ -570,6 +573,129 @@ def list_scout_messages(thread_id: str, limit: int = 200) -> List[Dict[str, Any]
             .limit(limit)
         ).all()
         return [_row_to_dict(r) for r in rows]
+    finally:
+        session.close()
+
+
+# --- Agent secrets (encrypted store) ---
+
+
+def set_agent_secret(agent_name: str, kind: str, name: str, value: str) -> Dict[str, Any]:
+    """Create or replace an encrypted secret for (agent, provider)."""
+    session = _session()
+    try:
+        row = session.get(AgentSecret, (agent_name, kind))
+        if not row:
+            row = AgentSecret(agent_name=agent_name, kind=kind, name=name, value=encrypt_secret(value))
+            session.add(row)
+        else:
+            row.name = name
+            row.value = encrypt_secret(value)
+        row.updated_at = datetime.utcnow()
+        session.commit()
+        session.refresh(row)
+        return {"agent_name": row.agent_name, "kind": row.kind, "name": row.name}
+    finally:
+        session.close()
+
+
+def list_agent_secrets(agent_name: Optional[str] = None) -> List[Dict[str, Any]]:
+    """List secret metadata (never returns token values)."""
+    session = _session()
+    try:
+        q = select(AgentSecret)
+        if agent_name:
+            q = q.where(AgentSecret.agent_name == agent_name)
+        q = q.order_by(AgentSecret.agent_name, AgentSecret.kind)
+        rows = session.scalars(q).all()
+        return [{"agent_name": r.agent_name, "kind": r.kind, "name": r.name} for r in rows]
+    finally:
+        session.close()
+
+
+def delete_agent_secret(agent_name: str, kind: str) -> bool:
+    session = _session()
+    try:
+        row = session.get(AgentSecret, (agent_name, kind))
+        if not row:
+            return False
+        session.delete(row)
+        session.commit()
+        return True
+    finally:
+        session.close()
+
+
+def get_secret_name(agent_name: str, kind: str) -> Optional[str]:
+    session = _session()
+    try:
+        row = session.get(AgentSecret, (agent_name, kind))
+        return row.name if row else None
+    finally:
+        session.close()
+
+
+def resolve_agent_secret(agent_name: str, kind: str) -> Optional[str]:
+    """Return the decrypted secret value for a (agent, provider), or None."""
+    session = _session()
+    try:
+        row = session.get(AgentSecret, (agent_name, kind))
+        if not row:
+            return None
+        return decrypt_secret(row.value)
+    finally:
+        session.close()
+
+
+def resolved_agent_profile(agent_name: str) -> Optional[Dict[str, Any]]:
+    """Agent profile with resolved provider secrets injected (no tokens returned)."""
+    profile = get_agent_profile(agent_name)
+    if not profile:
+        return None
+    profile["secrets"] = [
+        {"kind": s["kind"], "name": s["name"]} for s in list_agent_secrets(agent_name)
+    ]
+    return profile
+
+
+# --- Agent memory (persistent, scoped) ---
+
+
+def add_memory(agent_name: str, scope: str, key: str, value: str) -> Dict[str, Any]:
+    session = _session()
+    try:
+        row = AgentMemory(agent_name=agent_name, scope=scope, key=key, value=value)
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return _row_to_dict(row)
+    finally:
+        session.close()
+
+
+def list_memory(agent_name: str, scope: Optional[str] = None, limit: int = 100) -> List[Dict[str, Any]]:
+    session = _session()
+    try:
+        q = select(AgentMemory).where(AgentMemory.agent_name == agent_name)
+        if scope:
+            q = q.where(AgentMemory.scope == scope)
+        q = q.order_by(AgentMemory.created_at.desc()).limit(limit)
+        rows = session.scalars(q).all()
+        return [_row_to_dict(r) for r in rows]
+    finally:
+        session.close()
+
+
+def clear_memory(agent_name: str, scope: Optional[str] = None) -> int:
+    """Remove matching memory rows; returns deleted count."""
+    session = _session()
+    try:
+        q = delete(AgentMemory).where(AgentMemory.agent_name == agent_name)
+        if scope:
+            q = q.where(AgentMemory.scope == scope)
+        count = int(session.execute(q).rowcount or 0)
+        session.commit()
+        return count
     finally:
         session.close()
 
