@@ -88,8 +88,16 @@ def load_agent_prompt(agent_name: str, db_prompt: str | None = None) -> str:
     return _fallback(agent_name)
 
 
-def scout_profile_with_prompt(profile: Dict[str, Any]) -> Dict[str, Any]:
-    """Attach the resolved mission_prompt to a scout profile dict (non-mutating)."""
-    out = dict(profile)
-    out["mission_prompt"] = load_agent_prompt("discovery", profile.get("mission_prompt"))
-    return out
+def scout_profile_with_prompt(profile: Any) -> Dict[str, Any]:
+    """Return a dict profile with the resolved mission_prompt for the Scout.
+
+    Accepts either a real dict or a duck-typed object exposing ``.get`` (the
+    engine's unit tests pass a lightweight profile object), so the result is
+    always a plain dict containing exactly the keys ``run_scout_turn`` reads.
+    """
+    get = getattr(profile, "get", None)
+    return {
+        "model": get("model") if get else None,
+        "mission_prompt": load_agent_prompt("discovery", get("mission_prompt") if get else None),
+        "enabled_tools": list(get("enabled_tools") or []) if get else [],
+    }
