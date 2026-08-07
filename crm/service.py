@@ -700,6 +700,21 @@ def clear_memory(agent_name: str, scope: Optional[str] = None) -> int:
         session.close()
 
 
+# --- RAG vector store (P3) ---
+
+
+def ingest_chunk(agent_name: str, content: str, scope: str = "shared", source_uri: Optional[str] = None) -> Dict[str, Any]:
+    from db.embeddings import insert_chunk
+
+    return insert_chunk(agent_name, content, scope=scope, source_uri=source_uri)
+
+
+def search_chunks(agent_name: str, query: str, scope: Optional[str] = None, limit: int = 5) -> List[Dict[str, Any]]:
+    from db.embeddings import search_chunks as _search
+
+    return _search(agent_name, query, scope=scope, limit=limit)
+
+
 def tools_catalog() -> List[Dict[str, Any]]:
     return list(TOOL_CATALOG)
 

@@ -200,6 +200,29 @@ class AgentMemoryIn(BaseModel):
     value: str
 
 
+class ChunkIngestRequest(BaseModel):
+    agent_name: str
+    content: str
+    scope: str = "shared"
+    source_uri: Optional[str] = None
+
+
+class ChunkSearchRequest(BaseModel):
+    query: str
+    scope: Optional[str] = None
+    limit: int = 5
+
+
+class ChunkOut(BaseModel):
+    id: UUID
+    agent_name: str
+    scope: str
+    source_uri: Optional[str] = None
+    content: str
+    similarity: Optional[float] = None
+    created_at: Optional[datetime] = None
+
+
 class DiscoveryStartRequest(BaseModel):
     seed_query: Optional[str] = Field(None, min_length=2)
     max_search_results: int = Field(5, ge=1)

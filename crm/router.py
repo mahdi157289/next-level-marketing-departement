@@ -175,6 +175,24 @@ def get_memory(agent_name: str, scope: Optional[str] = None, limit: int = 100):
     return service.list_memory(agent_name, scope=scope, limit=limit)
 
 
+@router.post("/agents/{agent_name}/chunks", response_model=schemas.ChunkOut)
+def ingest_chunk(agent_name: str, body: schemas.ChunkIngestRequest):
+    row = service.ingest_chunk(agent_name, body.content, scope=body.scope, source_uri=body.source_uri)
+    row["created_at"] = _now_iso()
+    return row
+
+
+@router.post("/agents/{agent_name}/chunks/search", response_model=list[schemas.ChunkOut])
+def search_chunk(agent_name: str, body: schemas.ChunkSearchRequest):
+    return service.search_chunks(agent_name, body.query, scope=body.scope, limit=body.limit)
+
+
+def _now_iso() -> Optional[str]:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 @router.post("/agents/discovery/start", response_model=schemas.DiscoveryStartOut)
 def start_discovery(body: schemas.DiscoveryStartRequest):
     from crm import runner
