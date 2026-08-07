@@ -62,6 +62,18 @@ export interface ToolInfo {
   agents: string[];
 }
 
+export interface SkillHealthResult {
+  skill_id: string;
+  status: "ok" | "fail" | "skip";
+  detail: string;
+  latency_ms: number;
+}
+
+export interface SkillHealthResponse {
+  checked_at: string;
+  results: SkillHealthResult[];
+}
+
 
 export interface AgentSecretOut {
   agent_name: string;

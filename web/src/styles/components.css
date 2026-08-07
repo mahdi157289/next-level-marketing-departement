@@ -67,6 +67,20 @@
 .dot.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
 .dot.bad { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
 
+.lamp {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  vertical-align: middle;
+  flex: 0 0 auto;
+}
+
+.lamp.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
+.lamp.fail { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+.lamp.skip { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+.lamp.idle { background: var(--muted); }
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);

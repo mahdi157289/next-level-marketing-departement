@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -117,6 +118,17 @@ def list_agents():
 @router.get("/agents/tools", response_model=list[schemas.ToolInfo])
 def list_tools():
     return service.tools_catalog()
+
+
+@router.post("/agents/tools/health")
+def tools_health_check() -> dict:
+    """Run real live probes against every skill; returns green/red/amber verdicts."""
+    from crm import skill_health
+
+    return {
+        "checked_at": datetime.utcnow().isoformat(),
+        "results": skill_health.run_skill_checks(),
+    }
 
 
 @router.get("/agents/{agent_name}", response_model=schemas.AgentProfileOut)

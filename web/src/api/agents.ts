@@ -5,6 +5,7 @@ import type {
   DiscoveryFinishOut,
   DiscoveryStartOut,
   ProviderInfo,
+  SkillHealthResponse,
 } from "./types";
 
 export function fetchAgents(): Promise<AgentProfile[]> {
@@ -38,6 +39,10 @@ export interface ToolCatalogItem {
 
 export function fetchToolCatalog(): Promise<ToolCatalogItem[]> {
   return apiGet<ToolCatalogItem[]>("/api/agents/tools");
+}
+
+export function fetchSkillHealth(): Promise<SkillHealthResponse> {
+  return apiSend<SkillHealthResponse>("/api/agents/tools/health", "POST");
 }
 
 export function fetchProviders(agentName: string): Promise<ProviderInfo[]> {
