@@ -6,6 +6,7 @@ const LINKS = [
   { to: "/leads", label: "Leads" },
   { to: "/runs", label: "Runs" },
   { to: "/agents", label: "Agents" },
+  { to: "/tools", label: "Tools catalog" },
 ];
 
 export function Sidebar() {

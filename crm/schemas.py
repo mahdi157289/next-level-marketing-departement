@@ -192,6 +192,14 @@ class AgentSecretOut(BaseModel):
     agent_name: str
     kind: str
     name: str
+    fingerprint: Optional[str] = None
+
+
+class ProviderInfo(BaseModel):
+    kind: str
+    name: Optional[str] = None
+    has_key: bool
+    fingerprint: Optional[str] = None
 
 
 class AgentMemoryIn(BaseModel):

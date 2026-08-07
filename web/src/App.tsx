@@ -8,6 +8,7 @@ import Runs from "./pages/Runs";
 import RunsDetail from "./pages/RunsDetail";
 import Agents from "./pages/Agents";
 import AgentsDetail from "./pages/AgentsDetail";
+import Tools from "./pages/Tools";
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/runs/:id" element={<RunsDetail />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/agents/:name" element={<AgentsDetail />} />
+          <Route path="/tools" element={<Tools />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -62,6 +62,30 @@ export interface ToolInfo {
   agents: string[];
 }
 
+
+export interface AgentSecretOut {
+  agent_name: string;
+  kind: string;
+  name: string;
+  fingerprint?: string | null;
+}
+
+
+export interface ProviderInfo {
+  kind: string;
+  name?: string | null;
+  has_key: boolean;
+  fingerprint?: string | null;
+}
+
+
+export interface AgentSecretSet {
+  kind: string;
+  name: string;
+  value: string;
+}
+
+
 export interface AgentProfile {
   agent_name: string;
   display_name: string;

@@ -47,8 +47,11 @@ def test_secret_roundtrip_and_is_encrypted(client, agent_name):
     assert r.status_code == 200, r.text
 
     rows = client.get(f"/crm/agents/{agent_name}/secrets").json()
-    assert {"agent_name": agent_name, "kind": "openai", "name": "OPENAI_API_KEY"} in rows
-    # List never returns token values.
+    listed = next(s for s in rows if s["kind"] == "openai" and s["name"] == "OPENAI_API_KEY")
+    assert listed["agent_name"] == agent_name
+    # List returns a short fingerprint, never the raw token value.
+    assert listed["fingerprint"]
+    assert "value" not in listed
     assert all("value" not in s for s in rows)
 
     resolved = client.get(f"/crm/agents/{agent_name}/secrets/openai/resolve").json()

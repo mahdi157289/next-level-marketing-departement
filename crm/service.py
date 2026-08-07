@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -600,7 +601,11 @@ def set_agent_secret(agent_name: str, kind: str, name: str, value: str) -> Dict[
 
 
 def list_agent_secrets(agent_name: Optional[str] = None) -> List[Dict[str, Any]]:
-    """List secret metadata (never returns token values)."""
+    """List secret metadata plus a short fingerprint (sha256 of the token).
+
+    Fingerprints let operators confirm *which* key is set without exposing it.
+    The raw encrypted value is never returned.
+    """
     session = _session()
     try:
         q = select(AgentSecret)
@@ -608,9 +613,44 @@ def list_agent_secrets(agent_name: Optional[str] = None) -> List[Dict[str, Any]]
             q = q.where(AgentSecret.agent_name == agent_name)
         q = q.order_by(AgentSecret.agent_name, AgentSecret.kind)
         rows = session.scalars(q).all()
-        return [{"agent_name": r.agent_name, "kind": r.kind, "name": r.name} for r in rows]
+        out = []
+        for r in rows:
+            out.append(
+                {
+                    "agent_name": r.agent_name,
+                    "kind": r.kind,
+                    "name": r.name,
+                    "fingerprint": _fingerprint(r.value),
+                }
+            )
+        return out
     finally:
         session.close()
+
+
+def _fingerprint(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()[:8]
+
+
+# Known provider "kinds" operators can configure per agent.
+KNOWN_PROVIDERS: List[str] = ["openai", "serpapi", "google_maps", "meta_ads"]
+
+
+def list_providers(agent_name: str) -> List[Dict[str, Any]]:
+    """Providers for an agent with has_key + fingerprint (no raw tokens)."""
+    secrets = {s["kind"]: s for s in list_agent_secrets(agent_name)}
+    out: List[Dict[str, Any]] = []
+    for kind in KNOWN_PROVIDERS:
+        sec = secrets.get(kind)
+        out.append(
+            {
+                "kind": kind,
+                "name": sec["name"] if sec else None,
+                "has_key": sec is not None,
+                "fingerprint": sec["fingerprint"] if sec else None,
+            }
+        )
+    return out
 
 
 def delete_agent_secret(agent_name: str, kind: str) -> bool:

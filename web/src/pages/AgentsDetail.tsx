@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { fetchAgent, finishScout, startScout, updateAgent } from "../api/agents";
+import {
+  deleteProviderKey,
+  fetchAgent,
+  fetchProviders,
+  finishScout,
+  startScout,
+  upsertProviderKey,
+  updateAgent,
+} from "../api/agents";
+import type { ProviderInfo } from "../api/types";
 import type { ScoutStatus } from "../api/types";
 import { apiGet } from "../api/client";
 
@@ -164,6 +173,104 @@ export default function AgentsDetail() {
           <button className="btn" type="submit" disabled={save.isPending}>Save profile</button>
         </form>
       </div>
+
+      <ProviderKeys agentName={name} />
+    </div>
+  );
+}
+
+function ProviderKeys({ agentName }: { agentName: string }) {
+  const qc = useQueryClient();
+  const [flash, setFlash] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [form, setForm] = useState({ kind: "openai", name: "OPENAI_API_KEY", value: "" });
+
+  const { data: providers } = useQuery<ProviderInfo[]>({
+    queryKey: ["providers", agentName],
+    queryFn: () => fetchProviders(agentName),
+  });
+
+  const add = useMutation({
+    mutationFn: (body: typeof form) => upsertProviderKey(agentName, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["providers", agentName] });
+      setFlash("Key saved (encrypted at rest).");
+      setErr(null);
+      setForm({ kind: "openai", name: "OPENAI_API_KEY", value: "" });
+    },
+    onError: (e: Error) => setErr(e.message),
+  });
+
+  const del = useMutation({
+    mutationFn: (kind: string) => deleteProviderKey(agentName, kind),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["providers", agentName] });
+      setFlash("Key removed.");
+      setErr(null);
+    },
+    onError: (e: Error) => setErr(e.message),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    add.mutate(form);
+  };
+
+  return (
+    <div className="panel">
+      <h3>Provider API keys (hashed fingerprint shown)</h3>
+      {flash ? <div className="flash">{flash}</div> : null}
+      {err ? <div className="flash err">{err}</div> : null}
+
+      <form onSubmit={handleSubmit}>
+        <div className="form-row">
+          <label htmlFor="kind">Provider (kind)</label>
+          <select id="kind" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value })}>
+            <option value="openai">openai (LLM / embeddings)</option>
+            <option value="serpapi">serpapi (search)</option>
+            <option value="google_maps">google_maps (places)</option>
+            <option value="meta_ads">meta_ads (ad library)</option>
+          </select>
+        </div>
+        <div className="form-row">
+          <label htmlFor="name">Key name (label)</label>
+          <input id="name" type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+        </div>
+        <div className="form-row">
+          <label htmlFor="value">Secret value (stored encrypted — never shown again)</label>
+          <input id="value" type="password" value={form.value} onChange={(e) => setForm({ ...form, value: e.target.value })} required minLength={4} />
+        </div>
+        <button className="btn" type="submit" disabled={add.isPending}>Set key</button>
+      </form>
+
+      <table className="data" style={{ marginTop: 12 }}>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Key name</th>
+            <th>Fingerprint (sha256)</th>
+            <th>Status</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {(providers ?? []).map((p) => (
+            <tr key={p.kind}>
+              <td>{p.kind}</td>
+              <td>{p.name ?? "—"}</td>
+              <td className="muted">{p.fingerprint ? `sha256:${p.fingerprint}` : "—"}</td>
+              <td>{p.has_key ? "set" : "not set"}</td>
+              <td>
+                {p.has_key ? (
+                  <button className="btn danger" style={{ fontSize: 12 }} onClick={() => del.mutate(p.kind)} disabled={del.isPending}>
+                    Delete
+                  </button>
+                ) : null}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

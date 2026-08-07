@@ -1,5 +1,11 @@
-import { apiGet, apiSend } from "./client";
-import type { AgentProfile, DiscoveryFinishOut, DiscoveryStartOut } from "./types";
+import { apiDelete, apiGet, apiSend } from "./client";
+import type {
+  AgentProfile,
+  AgentSecretOut,
+  DiscoveryFinishOut,
+  DiscoveryStartOut,
+  ProviderInfo,
+} from "./types";
 
 export function fetchAgents(): Promise<AgentProfile[]> {
   return apiGet<AgentProfile[]>("/api/agents");
@@ -22,4 +28,36 @@ export function startScout(seedQuery: string, maxSearchResults: number): Promise
 
 export function finishScout(): Promise<DiscoveryFinishOut> {
   return apiSend<DiscoveryFinishOut>("/api/agents/discovery/finish", "POST");
+}
+
+export interface ToolCatalogItem {
+  id: string;
+  label: string;
+  agents: string[];
+}
+
+export function fetchToolCatalog(): Promise<ToolCatalogItem[]> {
+  return apiGet<ToolCatalogItem[]>("/api/agents/tools");
+}
+
+export function fetchProviders(agentName: string): Promise<ProviderInfo[]> {
+  return apiGet<ProviderInfo[]>(`/api/agents/${agentName}/providers`);
+}
+
+export interface ProviderKeyForm {
+  kind: string;
+  name: string;
+  value: string;
+}
+
+export function upsertProviderKey(agentName: string, body: ProviderKeyForm): Promise<AgentSecretOut> {
+  return apiSend<AgentSecretOut>(`/api/agents/${agentName}/secrets`, "POST", {
+    kind: body.kind,
+    name: body.name,
+    value: body.value,
+  });
+}
+
+export function deleteProviderKey(agentName: string, kind: string): Promise<void> {
+  return apiDelete<void>(`/api/agents/${agentName}/secrets/${kind}`);
 }

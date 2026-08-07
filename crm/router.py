@@ -143,6 +143,13 @@ def list_secrets(agent_name: str):
     return service.list_agent_secrets(agent_name)
 
 
+@router.get("/agents/{agent_name}/providers", response_model=list[schemas.ProviderInfo])
+def list_providers(agent_name: str):
+    if not service.get_agent_profile(agent_name):
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return service.list_providers(agent_name)
+
+
 @router.post("/agents/{agent_name}/secrets", response_model=schemas.AgentSecretOut)
 def upsert_secret(agent_name: str, body: schemas.AgentSecretSet):
     service.set_agent_secret(agent_name, body.kind, body.name, body.value)
