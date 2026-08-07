@@ -54,6 +54,18 @@ def test_providers_list_and_secret_fingerprint(client):
     # List does NOT leak the value.
     listed = client.get(f"/api/agents/{agent}/secrets").json()
     assert all("value" not in s for s in listed)
+
+    # Re-setting the SAME key value must yield the SAME fingerprint even though
+    # the Fernet token is randomized per encryption (fingerprint hashes the
+    # decrypted value, not the token).
+    client.post(
+        f"/api/agents/{agent}/secrets",
+        json={"kind": "openai", "name": "OPENAI_API_KEY", "value": "sk-test-abcdef123456"},
+    )
+    rows = client.get(f"/api/agents/{agent}/providers").json()
+    openai2 = next(p for p in rows if p["kind"] == "openai")
+    assert openai2["fingerprint"] == openai["fingerprint"]
+
     client.delete(f"/api/agents/{agent}/secrets/openai")
 
 

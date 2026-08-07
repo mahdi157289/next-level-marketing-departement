@@ -620,7 +620,7 @@ def list_agent_secrets(agent_name: Optional[str] = None) -> List[Dict[str, Any]]
                     "agent_name": r.agent_name,
                     "kind": r.kind,
                     "name": r.name,
-                    "fingerprint": _fingerprint(r.value),
+                    "fingerprint": _fingerprint(decrypt_secret(r.value) or ""),
                 }
             )
         return out
