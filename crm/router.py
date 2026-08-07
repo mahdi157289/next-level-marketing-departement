@@ -156,7 +156,7 @@ def start_discovery(body: schemas.DiscoveryStartRequest):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     try:
-        return runner.start_discovery_scout(seed, max_search_results=body.max_search_results)
+        return runner.start_discovery_scout(seed, max_search_results=body.max_search_results, mission=body.mission)
     except RuntimeError as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
 

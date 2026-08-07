@@ -185,6 +185,25 @@ def start_pipeline_run(trigger: str, seed_query: Optional[str], meta: Optional[D
         session.close()
 
 
+def dispatch_agent_task(
+    agent_name: str, seed_query: Optional[str], mission: Optional[str] = None
+) -> Dict[str, Any]:
+    """Dispatch a task to an agent via the pipeline runner (generic, agent-agnostic).
+
+    Persists a PipelineRun with meta={mission, from_agent:<name>} so the operator
+    and the Head Agent UI can inspect what was dispatched. Sub-agents that need
+    live execution (e.g. Discovery) dispatch via their dedicated start endpoint
+    (crm.router / runners), which also records to this run id.
+    """
+    if not get_agent_profile(agent_name):
+        raise ValueError(f"Unknown agent: {agent_name}")
+    return start_pipeline_run(
+        trigger=f"agent:{agent_name}",
+        seed_query=seed_query,
+        meta={"mission": mission or "", "from_agent": agent_name, "mode": "dispatch"},
+    )
+
+
 def complete_pipeline_run(
     run_id: str,
     status: str = "success",

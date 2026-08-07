@@ -185,6 +185,7 @@ class AgentProfileUpdate(BaseModel):
 class DiscoveryStartRequest(BaseModel):
     seed_query: Optional[str] = Field(None, min_length=2)
     max_search_results: int = Field(5, ge=1)
+    mission: Optional[str] = None
 
 
 class DiscoveryStartOut(BaseModel):

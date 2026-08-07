@@ -11,6 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 from agents import lm_client
 from config.settings import get_settings
 from crm import service
+from knowledge.prompts import scout_profile_with_prompt
 from tools import registry
 
 _MAX_TOOL_ITERATIONS = 5
@@ -62,6 +63,7 @@ def _load_scout_profile() -> Dict[str, Any]:
         profile = service.get_agent_profile("discovery") or {}
     except Exception:
         profile = {}
+    profile = scout_profile_with_prompt(profile)
     return {
         "model": profile.get("model") or s.agent_model_discovery,
         "mission_prompt": profile.get("mission_prompt") or "You are the Scout.",

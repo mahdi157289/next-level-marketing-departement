@@ -13,6 +13,7 @@ from agents import lm_client
 from config.settings import get_settings
 from crm.client import AgentRunRecorder
 from knowledge.loader import company_context
+from knowledge.prompts import load_agent_prompt
 from tools.registry import (
     catalog_for_agent,
     clamp_discovery_tools,
@@ -61,7 +62,7 @@ class HeadAgent:
         self.model = model or (profile.get("model") if profile else None) or s.agent_model_head
         self.mission_prompt = (
             mission_prompt
-            or (profile.get("mission_prompt") if profile else None)
+            or load_agent_prompt("head", profile.get("mission_prompt") if profile else None)
             or _DEFAULT_MISSION
         )
         self.enabled_tools = list(

@@ -24,6 +24,11 @@ class ScoutMessageCreate(BaseModel):
     content: str
 
 
+class AgentDispatchRequest(BaseModel):
+    seed_query: Optional[str] = None
+    mission: Optional[str] = None
+
+
 @router.get("/scout/status")
 def api_scout_status():
     stats = service.compute_stats()
@@ -97,6 +102,43 @@ def api_list_threads(limit: int = 50):
 @router.post("/scout/threads", response_model=schemas.ScoutThreadOut, status_code=201)
 def api_create_thread(body: ScoutThreadCreate):
     return service.create_scout_thread(body.title)
+
+
+@router.post("/agents/{agent_name}/dispatch", response_model=schemas.PipelineRunOut, status_code=201)
+def api_dispatch_agent(agent_name: str, body: AgentDispatchRequest):
+    """Generic, agent-agnostic dispatch. Reuses the pipeline-run mechanism.
+
+    For Discovery, delegates to the live scout runner (records a PipelineRun with
+    the mission in its meta, then returns the full PipelineRun). For other agents,
+    records a PipelineRun so the Head UI can track dispatch (execution is left to
+    the agent's own start endpoint / scheduler). Always returns PipelineRunOut.
+    """
+    if agent_name == "discovery":
+        from crm import runner
+
+        seed = (body.seed_query or "").strip()
+        if len(seed) < 2:
+            profile = service.get_agent_profile("discovery") or {}
+            seed = (profile.get("default_seed_query") or "").strip()
+        if len(seed) < 2:
+            raise HTTPException(
+                status_code=400,
+                detail="seed_query required (or set default_seed_query on the Discovery profile)",
+            )
+        try:
+            kicked = runner.start_discovery_scout(seed, mission=body.mission)
+        except RuntimeError as e:
+            raise HTTPException(status_code=409, detail=str(e))
+        run = service.get_pipeline_run(kicked["pipeline_run_id"])
+        if run is None:
+            raise HTTPException(status_code=500, detail="pipeline run not found after dispatch")
+        return run
+    # Non-discovery agents: record a dispatch run (execution by the agent's own start endpoint).
+    try:
+        run = service.dispatch_agent_task(agent_name, body.seed_query, body.mission)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return run
 
 
 @router.get(

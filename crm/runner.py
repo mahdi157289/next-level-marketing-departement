@@ -51,6 +51,7 @@ def start_discovery_scout(
     seed_query: str,
     *,
     max_search_results: int = 5,
+    mission: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Start Discovery-only in a background thread; return pipeline_run_id immediately."""
     global _active
@@ -85,6 +86,7 @@ def start_discovery_scout(
                 "max_search_results": max_search_results,
                 "mode": "discovery_only",
                 "head_assign": True,
+                "mission": mission or "",
             },
         )
         pipeline_run_id = recorder.start_pipeline()
