@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     agent_chat_timeout_s: float = 120.0
     app_port: int = 8000
     debug: bool = True
+    janusgraph_base_url: str = "ws://localhost:8182/gremlin"
+    redis_url: str = "redis://localhost:6379/2"
+    brain_cache_ttl_s: int = 3600
 
     def openai_base_url(self) -> str:
         base = (self.openai_api_base or "").strip()

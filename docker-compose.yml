@@ -64,6 +64,15 @@ services:
       timeout: 8s
       retries: 5
 
+  janusgraph:
+    image: janusgraph/janusgraph:1.1.0
+    container_name: marketing_janusgraph
+    profiles: ["brain"]
+    ports:
+      - "8182:8182"
+    volumes:
+      - janusgraph_data:/var/lib/janusgraph
+
   app:
     build: .
     container_name: marketing_app
@@ -83,6 +92,8 @@ services:
       AGENT_MODEL_HEAD: google/gemma-4-26b-a4b-it:free
       META_ADS_ACCESS_TOKEN: ${META_ADS_ACCESS_TOKEN}
       OLLAMA_BASE_URL: http://nextlevel-ollama:11434
+      JANUSGRAPH_BASE_URL: ws://janusgraph:8182/gremlin
+      REDIS_URL: redis://redis:6379/2
     depends_on:
       postgres:
         condition: service_healthy
@@ -141,3 +152,4 @@ volumes:
   ollama_data:
   wordpress_data:
   wpdb_data:
+  janusgraph_data:
