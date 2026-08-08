@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import * as agentChatApi from "../api/agent-chat";
+import type { ScoutMessage } from "../api/types";
 import { AgentChat } from "./AgentChat";
 
 vi.mock("../api/agent-chat", () => ({
@@ -33,7 +34,7 @@ describe("AgentChat", () => {
     vi.mocked(agentChatApi.fetchAgentThreads).mockResolvedValue([
       { id: "t1", title: "planning", created_at: null, updated_at: null },
     ]);
-    const msgs: Array<Record<string, unknown>> = [];
+    const msgs: ScoutMessage[] = [];
     vi.mocked(agentChatApi.fetchAgentMessages).mockImplementation(async () => [...msgs]);
     vi.mocked(agentChatApi.streamAgentTurn).mockImplementation(async (_name, _tid, _c, handlers) => {
       msgs.push({

@@ -13,6 +13,8 @@ import {
 import type { ProviderInfo } from "../api/types";
 import type { ScoutStatus } from "../api/types";
 import { apiGet } from "../api/client";
+import { AgentChat } from "../components/AgentChat";
+import { AgentPromptEditor } from "../components/AgentPromptEditor";
 
 export default function AgentsDetail() {
   const { name = "" } = useParams();
@@ -120,6 +122,16 @@ export default function AgentsDetail() {
             <button className="btn danger" type="button" onClick={() => finish.mutate()} disabled={finish.isPending}>Finish (cancel)</button>
           </form>
         </div>
+      ) : null}
+
+      {!isDiscovery ? (
+        <>
+          <div className="panel">
+            <h3>Chat with {agent.display_name}</h3>
+            <AgentChat agentName={name} label={agent.display_name} />
+          </div>
+          <AgentPromptEditor agentName={name} />
+        </>
       ) : null}
 
       <div className="panel">
