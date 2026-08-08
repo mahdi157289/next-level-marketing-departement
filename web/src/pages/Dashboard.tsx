@@ -5,6 +5,7 @@ import { fetchStats } from "../api/stats";
 import { KpiCard } from "../components/KpiCard";
 import { StatusBadge } from "../components/StatusBadge";
 import { ScoutActiveBadge } from "../components/ScoutActiveBadge";
+import BrainHealthCard from "../components/BrainHealthCard";
 
 function fmt(v: number | null | undefined): string {
   return v == null ? "—" : String(v);
@@ -25,6 +26,8 @@ export default function Dashboard() {
         <KpiCard label="Runs today" value={fmt(stats?.runs_today)} />
         <KpiCard label="Success rate" value={stats?.run_success_rate != null ? `${stats.run_success_rate}%` : "—"} accent="cyan" />
       </div>
+
+      <BrainHealthCard />
 
       <div className="panel">
         <h2>Active Scout</h2>

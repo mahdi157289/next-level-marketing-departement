@@ -161,3 +161,28 @@ export interface DiscoveryFinishOut {
   pipeline_run_id: string;
   status: string;
 }
+
+export interface BrainMetric {
+  id: string;
+  agent_name: string;
+  domain: string | null;
+  query: string | null;
+  query_hash: string;
+  latency_ms: number | null;
+  cache_hit: boolean;
+  vector_hits: number;
+  graph_hits: number;
+  created_at: string | null;
+}
+
+export interface BrainStatus {
+  available: boolean;
+  vertices: number;
+  edges: number;
+}
+
+export interface WorkerStatus {
+  active: number;
+  max_workers: number;
+  queued: number;
+}

@@ -81,6 +81,12 @@
 .lamp.skip { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
 .lamp.idle { background: var(--muted); }
 
+.lamp-row { display: flex; gap: 1.25rem; }
+.lamp-row span { display: inline-flex; align-items: center; gap: 0.35rem; }
+
+.text-green { color: var(--success); }
+.text-amber { color: var(--warning); }
+
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);

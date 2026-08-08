@@ -5,6 +5,13 @@ import { describe, expect, it, vi } from "vitest";
 import Dashboard from "./Dashboard";
 import * as statsApi from "../api/stats";
 import * as missionsApi from "../api/missions";
+import * as brainApi from "../api/brain";
+
+vi.mock("../api/brain", () => ({
+  fetchBrainStatus: vi.fn(),
+  fetchBrainMetrics: vi.fn(),
+  fetchWorkerStatus: vi.fn(),
+}));
 
 function renderDashboard() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -32,6 +39,9 @@ describe("Dashboard", () => {
     vi.spyOn(missionsApi, "fetchRecentMissions").mockResolvedValue([
       { id: "r1", trigger: "api", seed_query: "agencies", status: "success", started_at: "2026-08-05T00:00:00", finished_at: null, meta: null },
     ]);
+    vi.mocked(brainApi.fetchBrainStatus).mockResolvedValue({ available: true, vertices: 1, edges: 1 });
+    vi.mocked(brainApi.fetchBrainMetrics).mockResolvedValue({ metrics: [] });
+    vi.mocked(brainApi.fetchWorkerStatus).mockResolvedValue({ active: 0, max_workers: 3, queued: 0 });
 
     renderDashboard();
 
