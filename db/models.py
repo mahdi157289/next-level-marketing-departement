@@ -215,6 +215,7 @@ class ScoutThread(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title = Column(Text)
+    agent_name = Column(String(32), nullable=False, default="discovery")
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
     updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -224,6 +225,7 @@ class ScoutMessage(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     thread_id = Column(UUID(as_uuid=True), nullable=False)
+    agent_name = Column(String(32), nullable=False, default="discovery")
     role = Column(String(16), nullable=False)
     content = Column(Text)
     tool_name = Column(String(64))

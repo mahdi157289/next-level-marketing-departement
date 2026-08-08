@@ -516,10 +516,16 @@ def update_agent_profile(agent_name: str, data: Dict[str, Any]) -> Optional[Dict
 # --- Scout chat ---
 
 
-def create_scout_thread(title: Optional[str] = None) -> Dict[str, Any]:
+def create_scout_thread(
+    title: Optional[str] = None, agent_name: str = "discovery"
+) -> Dict[str, Any]:
     session = _session()
     try:
-        thread = ScoutThread(id=uuid.uuid4(), title=title or "New scout thread")
+        thread = ScoutThread(
+            id=uuid.uuid4(),
+            title=title or "New scout thread",
+            agent_name=agent_name,
+        )
         session.add(thread)
         session.commit()
         session.refresh(thread)
@@ -528,11 +534,14 @@ def create_scout_thread(title: Optional[str] = None) -> Dict[str, Any]:
         session.close()
 
 
-def list_scout_threads(limit: int = 50) -> List[Dict[str, Any]]:
+def list_scout_threads(agent_name: str = "discovery", limit: int = 50) -> List[Dict[str, Any]]:
     session = _session()
     try:
         rows = session.scalars(
-            select(ScoutThread).order_by(ScoutThread.created_at.desc()).limit(limit)
+            select(ScoutThread)
+            .where(ScoutThread.agent_name == agent_name)
+            .order_by(ScoutThread.created_at.desc())
+            .limit(limit)
         ).all()
         return [_row_to_dict(r) for r in rows]
     finally:
@@ -546,6 +555,7 @@ def add_scout_message(
     tool_name: Optional[str] = None,
     tool_args: Optional[Dict[str, Any]] = None,
     tool_result: Optional[Any] = None,
+    agent_name: str = "discovery",
 ) -> Dict[str, Any]:
     session = _session()
     try:
@@ -557,6 +567,7 @@ def add_scout_message(
             tool_name=tool_name,
             tool_args=tool_args,
             tool_result=tool_result,
+            agent_name=agent_name,
         )
         session.add(msg)
         session.commit()
