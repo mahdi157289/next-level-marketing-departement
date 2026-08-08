@@ -1,6 +1,6 @@
 # Agent Chat + Editable agent.md (Head & Qualifier): Design Spec
 
-> **Date:** 2026-08-08  **Status:** Design approved — pending implementation.
+> **Date:** 2026-08-08  **Status:** Implemented (committed).
 > **Stack:** Docker (postgres, janusgraph, redis, litellm, app, web), Windows host, React + TS + @tanstack/react-query, FastAPI.
 > **Goal:** Let the operator talk to the Head and Qualifier agents directly in a chat UI (same experience as Scout), and let them author each agent's role via an editable `agent.md` file (already half-supported via `prompts/*.md`).
 
