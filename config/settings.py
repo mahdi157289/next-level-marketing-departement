@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     janusgraph_base_url: str = "ws://localhost:8182/gremlin"
     redis_url: str = "redis://localhost:6379/2"
     brain_cache_ttl_s: int = 3600
+    orchestrator_workers: int = 3
 
     def openai_base_url(self) -> str:
         base = (self.openai_api_base or "").strip()

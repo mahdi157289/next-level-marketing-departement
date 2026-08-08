@@ -39,6 +39,16 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.on_event("startup")
+def _reclaim_stale_dispatch_runs() -> None:
+    try:
+        from crm import orchestrator
+
+        orchestrator.reclaim_stale_runs()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @app.get("/health/db")
 def health_db(db: Session = Depends(get_db)) -> dict[str, str]:
     db.execute(text("SELECT 1"))

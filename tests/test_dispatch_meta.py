@@ -1,16 +1,15 @@
 """Dispatch (mission metadata) integration tests.
 
 DB-gated like the rest of tests/test_crm_api.py. We assert on the persisted
-PipelineRun.meta via SQL and clean up created rows. Uses the `head` agent
-for dispatch (which only records a PipelineRun — no live LLM run — so the test
-is hermetic). Discovery dispatch launches a real LLM scout, so it is not
-exercised here beyond the unknown-agent 404.
+PipelineRun.meta via SQL and clean up created rows. The orchestrator pool is
+stubbed so no background LLM runner is spawned.
 """
 from __future__ import annotations
 
 import os
 import uuid
 from typing import Optional
+from unittest import mock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -28,14 +27,30 @@ def client():
     return TestClient(app)
 
 
+class _FakePool:
+    max_workers = 3
+
+    def submit(self, *a, **kw):
+        return None
+
+    def active_count(self):
+        return 0
+
+    def queued_count(self):
+        return 0
+
+
 def test_dispatch_records_mission_metadata(client):
     if not _database_url():
         pytest.skip("DATABASE_URL not set")
+    from crm import orchestrator
+
     mission = f"pytest-mission-{uuid.uuid4().hex[:8]}"
-    r = client.post(
-        "/api/agents/head/dispatch",
-        json={"seed_query": None, "mission": mission},
-    )
+    with mock.patch.object(orchestrator, "pool", return_value=_FakePool()):
+        r = client.post(
+            "/api/agents/head/dispatch",
+            json={"seed_query": None, "mission": mission},
+        )
     assert r.status_code == 201, r.text
     run_id = r.json()["id"]
     eng = create_engine(_database_url())

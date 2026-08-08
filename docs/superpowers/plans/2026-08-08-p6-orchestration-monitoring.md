@@ -1142,21 +1142,26 @@ def test_batch_dispatch_enqueues_runs(client):
     eng = create_engine(_database_url())
     try:
         with eng.connect() as conn:
-            rows = conn.execute(
-                text("SELECT trigger, seed_query, meta FROM pipeline_runs WHERE id = ANY(:ids)"),
-                {"ids": run_ids},
-            ).fetchall()
-        assert len(rows) == 2
-        for trigger, seed, meta in rows:
-            assert trigger == "agent:head"
-            assert meta["from_agent"] == "head"
-            assert meta["mode"] == "dispatch"
+            for rid in run_ids:
+                row = conn.execute(
+                    text("SELECT trigger, seed_query, meta FROM pipeline_runs WHERE id = :id"),
+                    {"id": rid},
+                ).fetchone()
+                assert row is not None, f"run {rid} not found"
+                trigger, seed, meta = row
+                assert trigger == "agent:head"
+                assert meta["from_agent"] == "head"
+                assert meta["mode"] == "dispatch"
     finally:
         with eng.begin() as conn:
-            conn.execute(
-                text("DELETE FROM pipeline_runs WHERE id = ANY(:ids)"), {"ids": run_ids}
-            )
+            for rid in run_ids:
+                conn.execute(
+                    text("DELETE FROM pipeline_runs WHERE id = :id"), {"id": rid}
+                )
         eng.dispose()
+```
+
+Note: `WHERE id = ANY(:ids)` fails on Postgres/psycopg2 (uuid vs text array; and `:ids::uuid[]` is a syntax error in a `text()` query) — use per-id binds instead.
 ```
 
 - [ ] **Step 12: Run the failing tests**

@@ -53,6 +53,20 @@ def test_metrics_endpoint_shape(client):
     assert r.json() == {"metrics": []}
 
 
+def test_worker_status_endpoint_shape(client):
+    from crm import orchestrator
+
+    fake = type("FakePool", (), {"max_workers": 3})()
+    with (
+        mock.patch.object(orchestrator, "active_count", return_value=2),
+        mock.patch.object(orchestrator, "queued_count", return_value=1),
+        mock.patch.object(orchestrator, "pool", return_value=fake),
+    ):
+        r = client.get("/api/brain/worker/status")
+    assert r.status_code == 200
+    assert r.json() == {"active": 2, "max_workers": 3, "queued": 1}
+
+
 @pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
 def test_metrics_endpoint_live_db(client):
     from db.brain_metrics import record_query

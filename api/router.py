@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from crm import schemas, service
 from crm.router import router as crm_router
@@ -29,6 +29,15 @@ class ScoutMessageCreate(BaseModel):
 class AgentDispatchRequest(BaseModel):
     seed_query: Optional[str] = None
     mission: Optional[str] = None
+
+
+class BatchMission(BaseModel):
+    seed_query: Optional[str] = None
+    mission: Optional[str] = None
+
+
+class BatchDispatchRequest(BaseModel):
+    missions: List[BatchMission] = Field(default_factory=list)
 
 
 @router.get("/scout/status")
@@ -108,39 +117,38 @@ def api_create_thread(body: ScoutThreadCreate):
 
 @router.post("/agents/{agent_name}/dispatch", response_model=schemas.PipelineRunOut, status_code=201)
 def api_dispatch_agent(agent_name: str, body: AgentDispatchRequest):
-    """Generic, agent-agnostic dispatch. Reuses the pipeline-run mechanism.
+    """Enqueue an agent task via the async worker pool (returns the run immediately)."""
+    from crm import orchestrator
 
-    For Discovery, delegates to the live scout runner (records a PipelineRun with
-    the mission in its meta, then returns the full PipelineRun). For other agents,
-    records a PipelineRun so the Head UI can track dispatch (execution is left to
-    the agent's own start endpoint / scheduler). Always returns PipelineRunOut.
-    """
-    if agent_name == "discovery":
-        from crm import runner
-
-        seed = (body.seed_query or "").strip()
-        if len(seed) < 2:
-            profile = service.get_agent_profile("discovery") or {}
-            seed = (profile.get("default_seed_query") or "").strip()
-        if len(seed) < 2:
-            raise HTTPException(
-                status_code=400,
-                detail="seed_query required (or set default_seed_query on the Discovery profile)",
-            )
-        try:
-            kicked = runner.start_discovery_scout(seed, mission=body.mission)
-        except RuntimeError as e:
-            raise HTTPException(status_code=409, detail=str(e))
-        run = service.get_pipeline_run(kicked["pipeline_run_id"])
-        if run is None:
-            raise HTTPException(status_code=500, detail="pipeline run not found after dispatch")
-        return run
-    # Non-discovery agents: record a dispatch run (execution by the agent's own start endpoint).
+    seed = (body.seed_query or "").strip()
+    if agent_name == "discovery" and len(seed) < 2:
+        profile = service.get_agent_profile("discovery") or {}
+        seed = (profile.get("default_seed_query") or "").strip()
+    if agent_name == "discovery" and len(seed) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="seed_query required (or set default_seed_query on the Discovery profile)",
+        )
     try:
-        run = service.dispatch_agent_task(agent_name, body.seed_query, body.mission)
+        run = orchestrator.enqueue_run(agent_name, seed, body.mission)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return run
+
+
+@router.post("/agents/{agent_name}/batch", status_code=201)
+def api_batch_dispatch(agent_name: str, body: BatchDispatchRequest):
+    """Enqueue several tasks for one agent; returns all created runs."""
+    from crm import orchestrator
+
+    try:
+        runs = [
+            orchestrator.enqueue_run(agent_name, m.seed_query or "", m.mission)
+            for m in body.missions
+        ]
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"runs": runs}
 
 
 @router.get(

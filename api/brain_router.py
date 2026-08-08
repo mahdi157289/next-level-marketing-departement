@@ -38,3 +38,14 @@ def brain_metrics(limit: int = 20):
     from db.brain_metrics import recent_queries
 
     return {"metrics": recent_queries(limit=limit)}
+
+
+@router.get("/worker/status")
+def worker_status():
+    from crm import orchestrator
+
+    return {
+        "active": orchestrator.active_count(),
+        "max_workers": orchestrator.pool().max_workers,
+        "queued": orchestrator.queued_count(),
+    }
