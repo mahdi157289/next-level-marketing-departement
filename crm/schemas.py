@@ -164,7 +164,7 @@ class ToolInfo(BaseModel):
 class AgentProfileOut(BaseModel):
     agent_name: str
     display_name: str
-    mission_prompt: str
+    mission_prompt: Optional[str] = None
     enabled_tools: List[str] = Field(default_factory=list)
     model: Optional[str] = None
     default_seed_query: Optional[str] = None

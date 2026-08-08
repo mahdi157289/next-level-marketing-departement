@@ -26,6 +26,7 @@ from db.models import (
 from db.session import SessionLocal
 from db.secrets import decrypt_secret, encrypt_secret
 from tools.registry import TOOL_CATALOG, catalog_for_agent, validate_tool_ids
+from crm.agents_registry import AGENT_ROSTER, roster_entry
 
 
 def _session() -> Session:
@@ -458,15 +459,34 @@ def get_pipeline_run(run_id: str) -> Optional[Dict[str, Any]]:
 # --- Agent profiles ---
 
 
+def _profile_from_roster(entry: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "agent_name": entry["name"],
+        "display_name": entry["display_name"],
+        "mission_prompt": None,
+        "enabled_tools": list(entry["default_tools"]),
+        "model": None,
+        "default_seed_query": None,
+        "default_domain": None,
+        "updated_at": None,
+        "available_tools": catalog_for_agent(entry["name"]),
+    }
+
+
 def list_agent_profiles() -> List[Dict[str, Any]]:
     session = _session()
     try:
         rows = session.scalars(select(AgentProfile).order_by(AgentProfile.agent_name)).all()
+        seen = set()
         out = []
         for r in rows:
+            seen.add(r.agent_name)
             d = _row_to_dict(r)
             d["available_tools"] = catalog_for_agent(r.agent_name)
             out.append(d)
+        for entry in AGENT_ROSTER:
+            if entry["name"] not in seen:
+                out.append(_profile_from_roster(entry))
         return out
     finally:
         session.close()
@@ -476,13 +496,16 @@ def get_agent_profile(agent_name: str) -> Optional[Dict[str, Any]]:
     session = _session()
     try:
         row = session.get(AgentProfile, agent_name)
-        if not row:
-            return None
-        d = _row_to_dict(row)
-        d["available_tools"] = catalog_for_agent(agent_name)
-        return d
+        if row:
+            d = _row_to_dict(row)
+            d["available_tools"] = catalog_for_agent(agent_name)
+            return d
     finally:
         session.close()
+    entry = roster_entry(agent_name)
+    if not entry:
+        return None
+    return _profile_from_roster(entry)
 
 
 def update_agent_profile(agent_name: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -490,7 +513,16 @@ def update_agent_profile(agent_name: str, data: Dict[str, Any]) -> Optional[Dict
     try:
         row = session.get(AgentProfile, agent_name)
         if not row:
-            return None
+            entry = roster_entry(agent_name)
+            if not entry:
+                return None
+            row = AgentProfile(
+                agent_name=agent_name,
+                display_name=entry["display_name"],
+                mission_prompt="",
+                enabled_tools=list(entry["default_tools"]),
+            )
+            session.add(row)
         if "display_name" in data and data["display_name"] is not None:
             row.display_name = data["display_name"]
         if "mission_prompt" in data and data["mission_prompt"] is not None:
