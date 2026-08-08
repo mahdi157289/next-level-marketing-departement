@@ -12,6 +12,7 @@ from agents import lm_client
 from config.settings import get_settings
 from crm import service
 from knowledge.prompts import scout_profile_with_prompt
+from knowledge.retrieval import build_brain_context
 from tools import registry
 
 _MAX_TOOL_ITERATIONS = 5
@@ -128,7 +129,15 @@ def run_scout_turn(
     service.add_scout_message(thread_id, "user", content=user_text)
 
     history = service.list_scout_messages(thread_id, limit=200)
-    messages: List[Dict[str, Any]] = [{"role": "system", "content": profile["mission_prompt"]}]
+    sys_content = profile["mission_prompt"]
+    latest_user = (history[-1].get("content") or "") if history else user_text
+    try:
+        ctx = build_brain_context("scout", latest_user)
+        if ctx:
+            sys_content = f"{sys_content}\n\n{ctx}"
+    except Exception:  # noqa: BLE001
+        pass
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": sys_content}]
     for m in history:
         if m.get("role") == "tool":
             content = m.get("tool_name") or "tool"

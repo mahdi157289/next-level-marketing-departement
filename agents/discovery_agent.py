@@ -15,6 +15,7 @@ from agents.memory import build_lesson_summary
 from config.settings import get_settings
 from crm.client import AgentRunRecorder, CancelledError
 from knowledge.loader import company_context
+from knowledge.retrieval import build_brain_context
 from tools.registry import resolve_callable, tool_enabled
 from tools.web_search_tool import web_search_tool
 
@@ -303,6 +304,10 @@ class DiscoveryAgent:
         mission = (self.mission_prompt or "").strip()
         if len(mission) > 1000:
             mission = mission[:1000] + "…"
+
+        ctx = build_brain_context("discovery", seed_query)
+        if ctx:
+            mission = f"{mission}\n\n{ctx}"
 
         def _build(max_hits: int, title_n: int, snip_n: int, blob_cap: int) -> str:
             slim = []

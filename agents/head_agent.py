@@ -14,6 +14,7 @@ from config.settings import get_settings
 from crm.client import AgentRunRecorder
 from knowledge.loader import company_context
 from knowledge.prompts import load_agent_prompt
+from knowledge.retrieval import build_brain_context
 from tools.registry import (
     catalog_for_agent,
     clamp_discovery_tools,
@@ -145,6 +146,9 @@ class HeadAgent:
             f"Goal / seed hint: {goal.strip()}\n\n"
             f"Allowed Discovery tools (you may only pick from these):\n{catalog_lines}\n"
         )
+        ctx = build_brain_context("head", goal)
+        if ctx:
+            user_body = f"{ctx}\n\n{user_body}"
         if "head" in self.model.lower() or "qwen" in self.model.lower():
             user_body = "/no_think\n" + user_body
         try:
@@ -204,6 +208,9 @@ class HeadAgent:
             f"{self.mission_prompt.strip()}\n\n"
             f"Seed query: {seed}\nRaw hits: {n}\n\nDiscovery report:\n{report}"
         )
+        ctx = build_brain_context("head", seed)
+        if ctx:
+            user_body = f"{ctx}\n\n{user_body}"
         if "head" in self.model.lower() or "qwen" in self.model.lower():
             user_body = "/no_think\n" + user_body
         messages = [{"role": "user", "content": user_body}]

@@ -9,6 +9,7 @@ from uuid import UUID
 
 from agents import lm_client
 from knowledge.loader import company_context, qualification_criteria
+from knowledge.retrieval import build_brain_context
 
 _COMPANY = company_context()
 _QUAL = qualification_criteria()
@@ -43,6 +44,9 @@ class QualifierAgent:
             f"Lead name: {name}\nURL: {url}\nNotes: {notes}\n"
             "Respond JSON only."
         )
+        ctx = build_brain_context("qualifier", f"{name} {url}".strip())
+        if ctx:
+            prompt = f"{ctx}\n\n{prompt}"
         try:
             text = lm_client.chat_completion(
                 self.model,

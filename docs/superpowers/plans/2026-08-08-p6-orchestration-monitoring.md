@@ -336,7 +336,7 @@ def test_default_domain_never_raises(monkeypatch):
 
 
 def test_build_brain_context_formats_results(monkeypatch):
-    from knowledge import retrieval
+    from knowledge import rag, retrieval
 
     monkeypatch.setattr(retrieval, "default_domain", lambda name: "tn")
     payload = {
@@ -345,7 +345,7 @@ def test_build_brain_context_formats_results(monkeypatch):
             {"type": "lead", "content": "Acme", "source": "https://acme.tn"},
         ]
     }
-    monkeypatch.setattr(retrieval, "scoped_query", lambda a, d, q, limit=5: payload)
+    monkeypatch.setattr(rag, "scoped_query", lambda a, d, q, limit=5: payload)
     ctx = retrieval.build_brain_context("discovery", "web agency")
     assert "## Brain context" in ctx
     assert "[chunk] Tunisia agency (leads/1)" in ctx
@@ -353,24 +353,26 @@ def test_build_brain_context_formats_results(monkeypatch):
 
 
 def test_build_brain_context_empty_when_no_results(monkeypatch):
-    from knowledge import retrieval
+    from knowledge import rag, retrieval
 
     monkeypatch.setattr(retrieval, "default_domain", lambda name: "tn")
-    monkeypatch.setattr(retrieval, "scoped_query", lambda a, d, q, limit=5: {"results": []})
+    monkeypatch.setattr(rag, "scoped_query", lambda a, d, q, limit=5: {"results": []})
     assert retrieval.build_brain_context("discovery", "x") == ""
 
 
 def test_build_brain_context_never_raises(monkeypatch):
-    from knowledge import retrieval
+    from knowledge import rag, retrieval
 
     monkeypatch.setattr(retrieval, "default_domain", lambda name: "tn")
 
     def boom(a, d, q, limit=5):
         raise RuntimeError("graph down")
 
-    monkeypatch.setattr(retrieval, "scoped_query", boom)
+    monkeypatch.setattr(rag, "scoped_query", boom)
     assert retrieval.build_brain_context("discovery", "x") == ""
 ```
+
+Note: `build_brain_context` imports `scoped_query` function-locally (`from knowledge.rag import scoped_query`), so tests patch the **source module** `knowledge.rag.scoped_query` (resolved at each call), not a `retrieval.scoped_query` attribute (which does not exist). `default_domain` likewise imports `crm.service` function-locally, so its tests patch `crm.service.get_agent_profile`.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
