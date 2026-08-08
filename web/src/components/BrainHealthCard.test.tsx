@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import BrainHealthCard from "./BrainHealthCard";
 import * as brainApi from "../api/brain";
@@ -8,6 +9,7 @@ vi.mock("../api/brain", () => ({
   fetchBrainStatus: vi.fn(),
   fetchBrainMetrics: vi.fn(),
   fetchWorkerStatus: vi.fn(),
+  flushBrainCache: vi.fn(),
 }));
 
 function renderCard() {
@@ -92,5 +94,20 @@ describe("BrainHealthCard", () => {
 
     expect(await screen.findByText("No brain activity yet.")).toBeInTheDocument();
     expect(screen.getByText(/Cache hit: —/)).toBeInTheDocument();
+  });
+
+  it("flushes the cache when the button is clicked", async () => {
+    vi.mocked(brainApi.fetchBrainStatus).mockResolvedValue({ available: true, vertices: 1, edges: 1 });
+    vi.mocked(brainApi.fetchWorkerStatus).mockResolvedValue({ active: 0, max_workers: 3, queued: 0 });
+    vi.mocked(brainApi.fetchBrainMetrics).mockResolvedValue({ metrics: [] });
+    vi.mocked(brainApi.flushBrainCache).mockResolvedValue({ flushed: 2 });
+
+    renderCard();
+
+    const btn = await screen.findByRole("button", { name: "Flush cache" });
+    await userEvent.click(btn);
+
+    expect(brainApi.flushBrainCache).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Flushed 2 cached keys.")).toBeInTheDocument();
   });
 });

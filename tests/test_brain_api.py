@@ -67,6 +67,13 @@ def test_worker_status_endpoint_shape(client):
     assert r.json() == {"active": 2, "max_workers": 3, "queued": 1}
 
 
+def test_cache_flush_endpoint_shape(client):
+    with mock.patch("knowledge.rag.flush_cache", return_value=7):
+        r = client.post("/api/brain/cache/flush")
+    assert r.status_code == 200
+    assert r.json() == {"flushed": 7}
+
+
 @pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
 def test_metrics_endpoint_live_db(client):
     from db.brain_metrics import record_query

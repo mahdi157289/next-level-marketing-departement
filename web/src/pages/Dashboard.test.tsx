@@ -11,6 +11,7 @@ vi.mock("../api/brain", () => ({
   fetchBrainStatus: vi.fn(),
   fetchBrainMetrics: vi.fn(),
   fetchWorkerStatus: vi.fn(),
+  flushBrainCache: vi.fn(),
 }));
 
 function renderDashboard() {

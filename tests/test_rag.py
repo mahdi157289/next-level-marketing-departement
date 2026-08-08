@@ -83,3 +83,49 @@ def test_cache_hit_records_truncated_query(monkeypatch):
     monkeypatch.setattr(rag, "record_query", lambda *a, **kw: recorded.update(kw))
     rag.scoped_query("discovery", "tn", "web agency" + "y" * 400, limit=5)
     assert recorded.get("query") == ("web agency" + "y" * 400)[:200]
+
+
+class _FakeCacheClient:
+    def __init__(self, keys):
+        self._keys = dict(keys)
+        self.deleted = []
+
+    def scan_iter(self, pattern):
+        for k in self._keys:
+            if pattern == "brain:*" and k.startswith("brain:"):
+                yield k
+
+    def delete(self, *keys):
+        for k in keys:
+            self.deleted.append(k)
+            self._keys.pop(k, None)
+        return len(keys)
+
+
+def test_flush_cache_deletes_only_brain_keys(monkeypatch):
+    from knowledge import rag
+
+    fake = _FakeCacheClient(
+        {
+            "brain:scout:global:aaa": "x",
+            "brain:scout:global:bbb": "y",
+            "scout:thread-1": "keep",
+            "session:abc": "keep",
+        }
+    )
+    monkeypatch.setattr(rag, "_cache_client", lambda: fake)
+    assert rag.flush_cache() == 2
+    assert sorted(fake.deleted) == ["brain:scout:global:aaa", "brain:scout:global:bbb"]
+    assert "scout:thread-1" in fake._keys
+    assert "session:abc" in fake._keys
+
+
+def test_flush_cache_never_raises(monkeypatch):
+    from knowledge import rag
+
+    class _Broken:
+        def scan_iter(self, pattern):
+            raise ConnectionError("redis down")
+
+    monkeypatch.setattr(rag, "_cache_client", lambda: _Broken())
+    assert rag.flush_cache() == 0

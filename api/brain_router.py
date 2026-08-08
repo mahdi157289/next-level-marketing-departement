@@ -40,6 +40,13 @@ def brain_metrics(limit: int = 20):
     return {"metrics": recent_queries(limit=limit)}
 
 
+@router.post("/cache/flush")
+def cache_flush():
+    from knowledge.rag import flush_cache
+
+    return {"flushed": flush_cache()}
+
+
 @router.get("/worker/status")
 def worker_status():
     from crm import orchestrator

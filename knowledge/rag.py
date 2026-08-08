@@ -51,6 +51,22 @@ def cache_set(key: str, payload: Dict[str, Any]) -> None:
         pass
 
 
+def flush_cache() -> int:
+    """Delete all cached brain responses (Redis keys prefixed ``brain:``).
+
+    Returns the number of keys removed. Never raises: a Redis outage simply
+    reports 0 flushed, matching the cache tier's graceful-degradation contract.
+    """
+    try:
+        client = _cache_client()
+        keys = list(client.scan_iter("brain:*"))
+        if not keys:
+            return 0
+        return int(client.delete(*keys))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
 def expand_related_leads(terms: List[str], domain: str, limit: int = 5) -> List[Dict[str, Any]]:
     return graphmod.expand_related_leads(terms, domain, limit=limit)
 

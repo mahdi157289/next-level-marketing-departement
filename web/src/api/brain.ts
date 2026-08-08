@@ -1,4 +1,4 @@
-import { apiGet } from "./client";
+import { apiGet, apiSend } from "./client";
 import type { BrainMetric, BrainStatus, WorkerStatus } from "./types";
 
 export function fetchBrainStatus(): Promise<BrainStatus> {
@@ -11,4 +11,8 @@ export function fetchBrainMetrics(limit = 10): Promise<{ metrics: BrainMetric[] 
 
 export function fetchWorkerStatus(): Promise<WorkerStatus> {
   return apiGet<WorkerStatus>("/api/brain/worker/status");
+}
+
+export function flushBrainCache(): Promise<{ flushed: number }> {
+  return apiSend<{ flushed: number }>("/api/brain/cache/flush", "POST");
 }

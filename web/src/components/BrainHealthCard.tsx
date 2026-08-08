@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { fetchBrainMetrics, fetchBrainStatus, fetchWorkerStatus } from "../api/brain";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { flushBrainCache, fetchBrainMetrics, fetchBrainStatus, fetchWorkerStatus } from "../api/brain";
 import type { BrainMetric } from "../api/types";
 import { Lamp } from "../pages/Tools";
 
@@ -34,6 +35,18 @@ export default function BrainHealthCard() {
     refetchInterval: 8000,
     retry: false,
   });
+  const qc = useQueryClient();
+  const flush = useMutation({
+    mutationFn: flushBrainCache,
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["brain-metrics"] });
+      setFlushMsg(`Flushed ${res.flushed} cached key${res.flushed === 1 ? "" : "s"}.`);
+    },
+    onError: () => {
+      setFlushMsg("Failed to flush cache.");
+    },
+  });
+  const [flushMsg, setFlushMsg] = useState<string | null>(null);
 
   const rows = metrics.data?.metrics ?? [];
   const total = rows.length;
@@ -62,6 +75,12 @@ export default function BrainHealthCard() {
         {avgLatency == null ? "—" : `${avgLatency}ms`} · Workers:{" "}
         {worker.data ? `${worker.data.active}/${worker.data.max_workers}` : "—"} · Queued:{" "}
         {worker.data?.queued ?? "—"}
+      </p>
+      <p>
+        <button className="btn secondary" onClick={() => flush.mutate()} disabled={flush.isPending}>
+          {flush.isPending ? "Flushing…" : "Flush cache"}
+        </button>{" "}
+        {flushMsg ? <span className="muted">{flushMsg}</span> : null}
       </p>
       {!rows.length ? (
         <p className="muted">No brain activity yet.</p>
