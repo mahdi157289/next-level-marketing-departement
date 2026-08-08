@@ -141,4 +141,33 @@ describe("HeadHQ", () => {
     fireEvent.click(screen.getByText("planning"));
     expect(screen.getByPlaceholderText("Message the Head…")).toBeInTheDocument();
   });
+
+  it("renders the system prompt editor and saves", async () => {
+    vi.mocked(runsApi.fetchAgentRuns).mockResolvedValue([]);
+    vi.mocked(runsApi.fetchPipelineRuns).mockResolvedValue([]);
+    vi.mocked(agentChatApi.fetchAgentPrompt).mockResolvedValue({
+      agent_name: "head",
+      exists: true,
+      content: "# Head",
+      resolved_prompt: "# Head",
+    });
+    vi.mocked(agentChatApi.saveAgentPrompt).mockResolvedValue({
+      agent_name: "head",
+      exists: true,
+      content: "# Head v2",
+      resolved_prompt: "# Head v2",
+    });
+
+    renderHQ();
+
+    expect(await screen.findByText("System prompt (agent.md)")).toBeInTheDocument();
+    const textarea = screen.getByDisplayValue("# Head");
+    fireEvent.change(textarea, { target: { value: "# Head v2" } });
+    fireEvent.click(screen.getByText("Save prompt"));
+
+    await waitFor(() =>
+      expect(agentChatApi.saveAgentPrompt).toHaveBeenCalledWith("head", "# Head v2"),
+    );
+    expect(await screen.findByText("Prompt saved.")).toBeInTheDocument();
+  });
 });

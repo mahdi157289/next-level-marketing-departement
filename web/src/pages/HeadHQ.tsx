@@ -4,6 +4,7 @@ import { dispatchAgent } from "../api/agents";
 import { fetchAgentRuns, fetchPipelineRun, fetchPipelineRuns } from "../api/runs";
 import type { AgentRun } from "../api/types";
 import { AgentChat } from "../components/AgentChat";
+import { AgentPromptEditor } from "../components/AgentPromptEditor";
 import { StatusBadge } from "../components/StatusBadge";
 
 interface PlanJson {
@@ -85,6 +86,8 @@ export default function HeadHQ() {
         <h3>Chat with Head</h3>
         <AgentChat agentName="head" label="Head" />
       </div>
+
+      <AgentPromptEditor agentName="head" />
 
       <div className="panel">
         <h3>Plan console</h3>

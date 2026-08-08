@@ -69,4 +69,30 @@ describe("AgentsDetail", () => {
     fireEvent.click(await screen.findByText("planning"));
     expect(screen.getByPlaceholderText("Message the Head…")).toBeInTheDocument();
   });
+
+  it("shows the prompt editor for discovery", async () => {
+    vi.mocked(agentsApi.fetchAgent).mockResolvedValue({
+      agent_name: "discovery",
+      display_name: "Discovery (Scout)",
+      mission_prompt: "m",
+      enabled_tools: ["llm_chat"],
+      model: null,
+      default_seed_query: "digital marketing agencies Tunisia",
+      updated_at: null,
+      available_tools: [],
+    });
+    vi.mocked(agentsApi.fetchProviders).mockResolvedValue([]);
+    vi.mocked(agentChatApi.fetchAgentPrompt).mockResolvedValue({
+      agent_name: "discovery",
+      exists: true,
+      content: "# Discovery",
+      resolved_prompt: "# Discovery",
+    });
+
+    renderDetail("discovery");
+
+    expect(await screen.findByText("Discovery (Scout)")).toBeInTheDocument();
+    expect(await screen.findByText("System prompt (agent.md)")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("# Discovery")).toBeInTheDocument();
+  });
 });

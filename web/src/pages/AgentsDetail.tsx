@@ -87,41 +87,44 @@ export default function AgentsDetail() {
       <p className="muted"><Link to="/agents">← Agents</Link></p>
 
       {isDiscovery ? (
-        <div className="panel">
-          <h3>Scout controls</h3>
-          <p><span className={`scout-pill ${status?.scout_active ? "on" : "off"}`}>{status?.scout_active ? "Scout active" : "Scout idle"}</span></p>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              start.mutate();
-            }}
-          >
-            <div className="form-row">
-              <label htmlFor="seed_query">Goal / seed hint (Start scout)</label>
-              <input
-                id="seed_query"
-                type="text"
-                value={seed}
-                onChange={(e) => setSeed(e.target.value)}
-                placeholder={agent.default_seed_query ?? ""}
-                required
-                minLength={2}
-              />
-            </div>
-            <div className="form-row" style={{ maxWidth: 200 }}>
-              <label htmlFor="max_search_results">Max search results</label>
-              <input
-                id="max_search_results"
-                type="number"
-                value={maxResults}
-                min={1}
-                onChange={(e) => setMaxResults(Number(e.target.value))}
-              />
-            </div>
-            <button className="btn" type="submit" disabled={start.isPending}>Start scout</button>
-            <button className="btn danger" type="button" onClick={() => finish.mutate()} disabled={finish.isPending}>Finish (cancel)</button>
-          </form>
-        </div>
+        <>
+          <div className="panel">
+            <h3>Scout controls</h3>
+            <p><span className={`scout-pill ${status?.scout_active ? "on" : "off"}`}>{status?.scout_active ? "Scout active" : "Scout idle"}</span></p>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                start.mutate();
+              }}
+            >
+              <div className="form-row">
+                <label htmlFor="seed_query">Goal / seed hint (Start scout)</label>
+                <input
+                  id="seed_query"
+                  type="text"
+                  value={seed}
+                  onChange={(e) => setSeed(e.target.value)}
+                  placeholder={agent.default_seed_query ?? ""}
+                  required
+                  minLength={2}
+                />
+              </div>
+              <div className="form-row" style={{ maxWidth: 200 }}>
+                <label htmlFor="max_search_results">Max search results</label>
+                <input
+                  id="max_search_results"
+                  type="number"
+                  value={maxResults}
+                  min={1}
+                  onChange={(e) => setMaxResults(Number(e.target.value))}
+                />
+              </div>
+              <button className="btn" type="submit" disabled={start.isPending}>Start scout</button>
+              <button className="btn danger" type="button" onClick={() => finish.mutate()} disabled={finish.isPending}>Finish (cancel)</button>
+            </form>
+          </div>
+          <AgentPromptEditor agentName={name} />
+        </>
       ) : null}
 
       {!isDiscovery ? (
