@@ -150,6 +150,13 @@ export interface ScoutMessage {
   created_at: string | null;
 }
 
+export interface AgentPrompt {
+  agent_name: string;
+  exists: boolean;
+  content: string;
+  resolved_prompt: string;
+}
+
 export interface DiscoveryStartOut {
   pipeline_run_id: string;
   status: string;
