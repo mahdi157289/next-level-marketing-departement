@@ -168,6 +168,7 @@ class AgentProfileOut(BaseModel):
     enabled_tools: List[str] = Field(default_factory=list)
     model: Optional[str] = None
     default_seed_query: Optional[str] = None
+    default_domain: Optional[str] = None
     updated_at: Optional[datetime] = None
     available_tools: List[ToolInfo] = Field(default_factory=list)
 
@@ -180,6 +181,7 @@ class AgentProfileUpdate(BaseModel):
     enabled_tools: Optional[List[str]] = None
     model: Optional[str] = None
     default_seed_query: Optional[str] = None
+    default_domain: Optional[str] = None
 
 
 class AgentSecretSet(BaseModel):

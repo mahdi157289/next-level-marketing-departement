@@ -74,6 +74,7 @@ def scoped_query(
                 record_query(
                     agent_name, domain, key, cached["latency_ms"], True,
                     cached.get("vector_hits", 0), cached.get("graph_hits", 0),
+                    query=query[:200],
                 )
             except Exception:  # noqa: BLE001
                 pass
@@ -130,6 +131,7 @@ def scoped_query(
         record_query(
             agent_name, domain, key, payload["latency_ms"], False,
             len(vector), len(graph_leads),
+            query=query[:200],
         )
     except Exception:  # noqa: BLE001
         pass

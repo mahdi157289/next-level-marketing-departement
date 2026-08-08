@@ -127,6 +127,7 @@ class AgentProfile(Base):
     enabled_tools = Column(JSON, nullable=False, default=list)
     model = Column(String(128))
     default_seed_query = Column(Text)
+    default_domain = Column(Text)
     updated_at = Column(TIMESTAMP, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 

@@ -501,6 +501,8 @@ def update_agent_profile(agent_name: str, data: Dict[str, Any]) -> Optional[Dict
             row.model = data["model"]
         if "default_seed_query" in data:
             row.default_seed_query = data["default_seed_query"]
+        if "default_domain" in data:
+            row.default_domain = ((data["default_domain"] or "").strip() or None)
         row.updated_at = datetime.utcnow()
         session.commit()
         session.refresh(row)

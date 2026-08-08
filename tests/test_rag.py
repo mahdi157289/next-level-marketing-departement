@@ -12,6 +12,7 @@ def patch_layers(monkeypatch):
     from knowledge import rag
 
     calls = {"vector": 0, "graph": 0, "cache_set": 0, "record": 0}
+    recorded: dict = {}
     monkeypatch.setattr(rag, "cache_get", lambda key: None)
     monkeypatch.setattr(
         rag, "cache_set", lambda key, payload: calls.__setitem__("cache_set", calls["cache_set"] + 1)
@@ -30,9 +31,9 @@ def patch_layers(monkeypatch):
     )
     monkeypatch.setattr(
         rag, "record_query",
-        lambda *a, **kw: calls.__setitem__("record", calls["record"] + 1),
+        lambda *a, **kw: calls.__setitem__("record", calls["record"] + 1) or recorded.update(kw),
     )
-    return rag, calls
+    return rag, calls, recorded
 
 
 def test_cache_hit_short_circuits_vector_and_graph(monkeypatch):
@@ -47,7 +48,7 @@ def test_cache_hit_short_circuits_vector_and_graph(monkeypatch):
 
 
 def test_miss_runs_vector_then_graph_and_caches(patch_layers):
-    rag, calls = patch_layers
+    rag, calls, recorded = patch_layers
     out = rag.scoped_query("discovery", "tn", "web agency tunisia", limit=5)
     assert calls["vector"] == 1
     assert calls["graph"] == 1
@@ -61,8 +62,24 @@ def test_miss_runs_vector_then_graph_and_caches(patch_layers):
 
 
 def test_graph_down_still_returns_vector(patch_layers, monkeypatch):
-    rag, calls = patch_layers
+    rag, calls, recorded = patch_layers
     monkeypatch.setattr(rag, "expand_related_leads", lambda *a, **kw: [])
     out = rag.scoped_query("discovery", "tn", "web agency", limit=5)
     assert out["graph_hits"] == 0
     assert any(r["type"] == "chunk" for r in out["results"])
+
+
+def test_miss_records_truncated_query(patch_layers):
+    rag, calls, recorded = patch_layers
+    rag.scoped_query("discovery", "tn", "x" * 500, limit=5)
+    assert recorded.get("query") == "x" * 200
+
+
+def test_cache_hit_records_truncated_query(monkeypatch):
+    from knowledge import rag
+
+    recorded: dict = {}
+    monkeypatch.setattr(rag, "cache_get", lambda key: {"results": [], "cache_hit": False})
+    monkeypatch.setattr(rag, "record_query", lambda *a, **kw: recorded.update(kw))
+    rag.scoped_query("discovery", "tn", "web agency" + "y" * 400, limit=5)
+    assert recorded.get("query") == ("web agency" + "y" * 400)[:200]

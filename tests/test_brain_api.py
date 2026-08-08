@@ -57,7 +57,7 @@ def test_metrics_endpoint_shape(client):
 def test_metrics_endpoint_live_db(client):
     from db.brain_metrics import record_query
 
-    record_query("pytest", "tn", "live-metrics-hash", 3, True, 0, 0)
+    record_query("pytest", "tn", "live-metrics-hash", 3, True, 0, 0, query="live metrics")
     r = client.get("/api/brain/metrics", params={"limit": 5})
     assert r.status_code == 200
-    assert any(m["query_hash"] == "live-metrics-hash" for m in r.json()["metrics"])
+    assert any(m["query_hash"] == "live-metrics-hash" and m.get("query") == "live metrics" for m in r.json()["metrics"])

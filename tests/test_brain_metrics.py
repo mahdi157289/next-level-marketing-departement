@@ -18,10 +18,11 @@ def test_record_and_recent_roundtrip():
     from db.brain_metrics import recent_queries, record_query
 
     h = "testhash-" + uuid.uuid4().hex[:8]
-    record_query("pytest", "tn", h, 12, False, 2, 1)
+    record_query("pytest", "tn", h, 12, False, 2, 1, query="what we offer")
     rows = recent_queries(limit=5)
     assert any(r["query_hash"] == h for r in rows)
     row = next(r for r in rows if r["query_hash"] == h)
+    assert row["query"] == "what we offer"
     assert row["cache_hit"] is False
     assert row["vector_hits"] == 2
     assert row["graph_hits"] == 1

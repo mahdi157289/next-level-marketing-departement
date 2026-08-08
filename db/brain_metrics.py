@@ -18,14 +18,15 @@ def record_query(
     cache_hit: bool,
     vector_hits: int,
     graph_hits: int,
+    query: Optional[str] = None,
 ) -> None:
     with engine.begin() as conn:
         conn.execute(
             text(
                 """
                 INSERT INTO brain_query_metrics
-                    (id, agent_name, domain, query_hash, latency_ms, cache_hit, vector_hits, graph_hits, created_at)
-                VALUES (:id, :agent_name, :domain, :query_hash, :latency_ms, :cache_hit, :vector_hits, :graph_hits, NOW())
+                    (id, agent_name, domain, query_hash, latency_ms, cache_hit, vector_hits, graph_hits, query, created_at)
+                VALUES (:id, :agent_name, :domain, :query_hash, :latency_ms, :cache_hit, :vector_hits, :graph_hits, :query, NOW())
                 """
             ),
             {
@@ -37,6 +38,7 @@ def record_query(
                 "cache_hit": cache_hit,
                 "vector_hits": vector_hits,
                 "graph_hits": graph_hits,
+                "query": query,
             },
         )
 
@@ -46,7 +48,7 @@ def recent_queries(limit: int = 20) -> List[Dict[str, Any]]:
         rows = conn.execute(
             text(
                 """
-                SELECT id, agent_name, domain, query_hash, latency_ms, cache_hit, vector_hits, graph_hits, created_at
+                SELECT id, agent_name, domain, query_hash, query, latency_ms, cache_hit, vector_hits, graph_hits, created_at
                 FROM brain_query_metrics
                 ORDER BY created_at DESC
                 LIMIT :limit
