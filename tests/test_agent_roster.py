@@ -100,3 +100,22 @@ def test_patch_qualifier_upserts_row(client):
     row = service.get_agent_profile("qualifier")
     assert row is not None
     assert row["display_name"] == "Qualifier 2.0"
+
+
+@pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
+def test_roster_chat_and_prompt_endpoints(client):
+    r = client.post("/api/agents/categorization/threads", json={"title": "t"})
+    assert r.status_code == 201, r.text
+    thread_id = r.json()["id"]
+
+    r = client.get(f"/api/agents/categorization/threads/{thread_id}/messages")
+    assert r.status_code == 200, r.text
+
+    r = client.get("/api/agents/categorization/prompt")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["agent_name"] == "categorization"
+    assert body["exists"] is False
+
+    r = client.get("/api/agents/nonexistent/prompt")
+    assert r.status_code == 400

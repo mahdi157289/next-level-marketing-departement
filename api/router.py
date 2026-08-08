@@ -10,6 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from crm import schemas, service
+from crm.agents_registry import roster_names
 from crm.router import router as crm_router
 from api.brain_router import router as brain_router
 
@@ -42,9 +43,6 @@ class BatchMission(BaseModel):
 
 class BatchDispatchRequest(BaseModel):
     missions: List[BatchMission] = Field(default_factory=list)
-
-
-_AGENT_CHAT_ALLOWED = {"head", "qualifier", "discovery"}
 
 
 @router.get("/scout/status")
@@ -171,14 +169,14 @@ def api_list_messages(thread_id: str, limit: int = 200):
 
 @router.get("/agents/{agent_name}/threads", response_model=List[schemas.ScoutThreadOut])
 def api_list_agent_threads(agent_name: str, limit: int = 50):
-    if agent_name not in _AGENT_CHAT_ALLOWED:
+    if agent_name not in roster_names():
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     return service.list_scout_threads(agent_name=agent_name, limit=limit)
 
 
 @router.post("/agents/{agent_name}/threads", response_model=schemas.ScoutThreadOut, status_code=201)
 def api_create_agent_thread(agent_name: str, body: ScoutThreadCreate):
-    if agent_name not in _AGENT_CHAT_ALLOWED:
+    if agent_name not in roster_names():
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     return service.create_scout_thread(body.title, agent_name=agent_name)
 
@@ -188,7 +186,7 @@ def api_create_agent_thread(agent_name: str, body: ScoutThreadCreate):
     response_model=List[schemas.ScoutMessageOut],
 )
 def api_list_agent_messages(agent_name: str, thread_id: str, limit: int = 200):
-    if agent_name not in _AGENT_CHAT_ALLOWED:
+    if agent_name not in roster_names():
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     try:
         return service.list_scout_messages(thread_id, limit=limit)
@@ -198,14 +196,14 @@ def api_list_agent_messages(agent_name: str, thread_id: str, limit: int = 200):
 
 @router.post("/agents/{agent_name}/threads/{thread_id}/messages")
 def api_agent_chat(agent_name: str, thread_id: str, body: ScoutMessageCreate):
-    if agent_name not in _AGENT_CHAT_ALLOWED:
+    if agent_name not in roster_names():
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     return _agent_chat_events(agent_name, thread_id, body.content)
 
 
 @router.get("/agents/{agent_name}/prompt")
 def api_get_agent_prompt(agent_name: str):
-    if agent_name not in _AGENT_CHAT_ALLOWED:
+    if agent_name not in roster_names():
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     from knowledge import prompts
 
@@ -220,7 +218,7 @@ def api_get_agent_prompt(agent_name: str):
 
 @router.put("/agents/{agent_name}/prompt")
 def api_put_agent_prompt(agent_name: str, body: PromptUpdate):
-    if agent_name not in _AGENT_CHAT_ALLOWED:
+    if agent_name not in roster_names():
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     from knowledge import prompts
 
