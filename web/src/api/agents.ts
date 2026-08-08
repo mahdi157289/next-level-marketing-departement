@@ -4,6 +4,7 @@ import type {
   AgentSecretOut,
   DiscoveryFinishOut,
   DiscoveryStartOut,
+  PipelineRun,
   ProviderInfo,
   SkillHealthResponse,
 } from "./types";
@@ -65,4 +66,11 @@ export function upsertProviderKey(agentName: string, body: ProviderKeyForm): Pro
 
 export function deleteProviderKey(agentName: string, kind: string): Promise<void> {
   return apiDelete<void>(`/api/agents/${agentName}/secrets/${kind}`);
+}
+
+export function dispatchAgent(
+  agentName: string,
+  body: { seed_query?: string; mission?: string },
+): Promise<PipelineRun> {
+  return apiSend<PipelineRun>(`/api/agents/${agentName}/dispatch`, "POST", body);
 }
