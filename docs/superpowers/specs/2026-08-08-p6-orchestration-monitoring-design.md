@@ -1,6 +1,6 @@
 # P6 — Orchestration + Monitoring: Design Spec
 
-> **Date:** 2026-08-08  **Status:** Design approved (mockup v3) — plan pending.
+> **Date:** 2026-08-08  **Status:** Implemented (committed) — P6 done.
 > **Branch:** `feat/scout-hq-backend`. **Stack:** Docker (postgres, janusgraph, redis, litellm, app, web), Windows host.
 > **Goal:** Make the agents actually use the RAG/graph brain they already advertise, add concurrent async dispatch, and surface brain/monitoring telemetry on the Dashboard.
 
