@@ -40,6 +40,9 @@ class BatchDispatchRequest(BaseModel):
     missions: List[BatchMission] = Field(default_factory=list)
 
 
+_AGENT_CHAT_ALLOWED = {"head", "qualifier", "discovery"}
+
+
 @router.get("/scout/status")
 def api_scout_status():
     stats = service.compute_stats()
@@ -53,16 +56,16 @@ def api_scout_status():
 
 @router.post("/scout/threads/{thread_id}/messages")
 def api_scout_chat(thread_id: str, body: ScoutMessageCreate):
-    return _scout_chat_events(thread_id, body.content)
+    return _agent_chat_events("discovery", thread_id, body.content)
 
 
-def _scout_chat_events(
-    thread_id: str, content: str, profile=None
+def _agent_chat_events(
+    agent_name: str, thread_id: str, content: str, profile=None
 ) -> StreamingResponse:
-    """SSE stream for a Scout chat turn.
+    """SSE stream for an agent chat turn.
 
-    ``profile`` defaults to the real ``scout._load_scout_profile`` (resolved lazily by
-    ``run_scout_turn``) when ``None``; pass an explicit profile to inject / avoid a
+    ``profile`` defaults to the real ``scout._load_agent_profile`` (resolved lazily by
+    ``run_agent_turn``) when ``None``; pass an explicit profile to inject / avoid a
     profile lookup.
     """
     from crm import scout
@@ -74,7 +77,7 @@ def _scout_chat_events(
             if profile is not None:
                 run_kwargs["profile"] = profile
             result = await asyncio.to_thread(
-                scout.run_scout_turn, thread_id, content, **run_kwargs
+                scout.run_agent_turn, agent_name, thread_id, content, **run_kwargs
             )
             for i, chunk in enumerate(_chunk_text(result["assistant"], 80)):
                 payload = {"delta": chunk, "index": i}
@@ -160,3 +163,37 @@ def api_list_messages(thread_id: str, limit: int = 200):
         return service.list_scout_messages(thread_id, limit=limit)
     except ValueError:
         raise HTTPException(status_code=422, detail="thread_id must be a UUID")
+
+
+@router.get("/agents/{agent_name}/threads", response_model=List[schemas.ScoutThreadOut])
+def api_list_agent_threads(agent_name: str, limit: int = 50):
+    if agent_name not in _AGENT_CHAT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+    return service.list_scout_threads(agent_name=agent_name, limit=limit)
+
+
+@router.post("/agents/{agent_name}/threads", response_model=schemas.ScoutThreadOut, status_code=201)
+def api_create_agent_thread(agent_name: str, body: ScoutThreadCreate):
+    if agent_name not in _AGENT_CHAT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+    return service.create_scout_thread(body.title, agent_name=agent_name)
+
+
+@router.get(
+    "/agents/{agent_name}/threads/{thread_id}/messages",
+    response_model=List[schemas.ScoutMessageOut],
+)
+def api_list_agent_messages(agent_name: str, thread_id: str, limit: int = 200):
+    if agent_name not in _AGENT_CHAT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+    try:
+        return service.list_scout_messages(thread_id, limit=limit)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="thread_id must be a UUID")
+
+
+@router.post("/agents/{agent_name}/threads/{thread_id}/messages")
+def api_agent_chat(agent_name: str, thread_id: str, body: ScoutMessageCreate):
+    if agent_name not in _AGENT_CHAT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+    return _agent_chat_events(agent_name, thread_id, body.content)

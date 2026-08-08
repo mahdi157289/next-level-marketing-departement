@@ -28,10 +28,10 @@ def test_scout_chat_sse(client, monkeypatch):
     from api import router as api_router
     import crm.scout as scout_mod
 
-    def fake_run(thread_id, user_text, **kw):
+    def fake_run(agent_name, thread_id, user_text, **kw):
         return {"thread_id": thread_id, "assistant": "done", "tool_calls": 0, "message_ids": ["m1"]}
 
-    monkeypatch.setattr(scout_mod, "run_scout_turn", fake_run)
+    monkeypatch.setattr(scout_mod, "run_agent_turn", fake_run)
     r = client.post("/api/scout/threads/00000000-0000-0000-0000-000000000001/messages", json={"content": "hello"})
     assert r.status_code == 200, r.text
     assert "text/event-stream" in r.headers["content-type"]
@@ -58,11 +58,11 @@ def _parse_sse(raw):
 
 
 async def test_scout_chat_sse_sequence(monkeypatch):
-    """Iterating _scout_chat_events directly yields start -> delta(s) -> done."""
+    """Iterating _agent_chat_events directly yields start -> delta(s) -> done."""
     import crm.scout as scout_mod
     from api import router as api_router
 
-    def fake_run(thread_id, user_text, **kw):
+    def fake_run(agent_name, thread_id, user_text, **kw):
         return {
             "thread_id": thread_id,
             "assistant": "A" * 200,
@@ -70,10 +70,10 @@ async def test_scout_chat_sse_sequence(monkeypatch):
             "message_ids": ["m1"],
         }
 
-    monkeypatch.setattr(scout_mod, "run_scout_turn", fake_run)
+    monkeypatch.setattr(scout_mod, "run_agent_turn", fake_run)
 
-    resp = api_router._scout_chat_events(
-        "00000000-0000-0000-0000-000000000001", "hello"
+    resp = api_router._agent_chat_events(
+        "discovery", "00000000-0000-0000-0000-000000000001", "hello"
     )
     frames = []
     async for chunk in resp.body_iterator:
@@ -95,12 +95,12 @@ async def test_scout_chat_sse_error(monkeypatch):
     import crm.scout as scout_mod
     from api import router as api_router
 
-    def fake_run(thread_id, user_text, **kw):
+    def fake_run(agent_name, thread_id, user_text, **kw):
         raise RuntimeError("engine blew up")
 
-    monkeypatch.setattr(scout_mod, "run_scout_turn", fake_run)
+    monkeypatch.setattr(scout_mod, "run_agent_turn", fake_run)
 
-    resp = api_router._scout_chat_events("t1", "hi")
+    resp = api_router._agent_chat_events("discovery", "t1", "hi")
     frames = []
     async for chunk in resp.body_iterator:
             frames.append(chunk)
