@@ -81,6 +81,10 @@ def roster_entry(name: str) -> dict | None: ...
 - `get_agent_profile(name)`: DB row if present; otherwise return roster defaults as a profile-shaped dict (`display_name`, `mission_prompt=None`, `enabled_tools=default_tools`, `model=None`, `default_seed_query=None`, `default_domain=None`, `updated_at=None`, `available_tools=catalog_for_agent(name)`).
 - `update_agent_profile(name, data)`: **upsert** — insert a fresh row when none exists, then apply the patch. This makes `PATCH /api/agents/qualifier` (and planned agents) create a real profile row on first edit.
 
+### 2.2b `tools/registry.py`
+
+Roster agents default to `enabled_tools: ["llm_chat"]`, and `update_agent_profile` validates `enabled_tools` via `validate_tool_ids(..., agent_name=...)`. Today `llm_chat` is advertised for `["discovery", "head"]` only, so `catalog_for_agent("qualifier")` is empty and validation would reject it. Expand the `llm_chat` catalog entry's `agents` to all roster names (or compute it from the roster) so chat is available to every agent.
+
 ### 2.3 `api/router.py`
 
 Replace the hardcoded `_AGENT_CHAT_ALLOWED = {"head", "qualifier", "discovery"}` with `roster_names()` from `crm.agents_registry`. This is the single allowlist already used by:
@@ -112,6 +116,7 @@ Backend (`tests/test_agent_roster.py`):
 - `/api/agents` lists all 7 roster names (DB rows + roster).
 - `GET /api/agents/qualifier` returns a profile (roster fallback); `GET /api/agents/categorization` likewise.
 - `PATCH /api/agents/qualifier` upserts → a DB row now exists; `GET` reflects the change.
+- `catalog_for_agent("qualifier")` includes `llm_chat` (after 2.2b).
 - `GET/POST /api/agents/categorization/threads` and `GET /api/agents/categorization/prompt` succeed (allowlist = roster); unknown name → 400.
 
 Frontend:
