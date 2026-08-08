@@ -26,6 +26,10 @@ class ScoutMessageCreate(BaseModel):
     content: str
 
 
+class PromptUpdate(BaseModel):
+    content: str
+
+
 class AgentDispatchRequest(BaseModel):
     seed_query: Optional[str] = None
     mission: Optional[str] = None
@@ -197,3 +201,34 @@ def api_agent_chat(agent_name: str, thread_id: str, body: ScoutMessageCreate):
     if agent_name not in _AGENT_CHAT_ALLOWED:
         raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
     return _agent_chat_events(agent_name, thread_id, body.content)
+
+
+@router.get("/agents/{agent_name}/prompt")
+def api_get_agent_prompt(agent_name: str):
+    if agent_name not in _AGENT_CHAT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+    from knowledge import prompts
+
+    content = prompts.file_prompt(agent_name)
+    return {
+        "agent_name": agent_name,
+        "exists": bool(content),
+        "content": content,
+        "resolved_prompt": prompts.load_agent_prompt(agent_name, None),
+    }
+
+
+@router.put("/agents/{agent_name}/prompt")
+def api_put_agent_prompt(agent_name: str, body: PromptUpdate):
+    if agent_name not in _AGENT_CHAT_ALLOWED:
+        raise HTTPException(status_code=400, detail=f"Unknown agent: {agent_name}")
+    from knowledge import prompts
+
+    prompts.write_file_prompt(agent_name, body.content)
+    content = prompts.file_prompt(agent_name)
+    return {
+        "agent_name": agent_name,
+        "exists": bool(content),
+        "content": content,
+        "resolved_prompt": prompts.load_agent_prompt(agent_name, None),
+    }

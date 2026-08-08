@@ -18,6 +18,13 @@ from typing import Any, Dict
 
 _DEFAULT_DISCOVERY_PROMPT = "You are the Scout."
 _DEFAULT_HEAD_PROMPT = "You are the Head Agent."
+_DEFAULT_QUALIFIER_PROMPT = (
+    "You are the Qualifier Agent for Next Level Tech Company. "
+    "Given a lead (name, URL, notes), evaluate it and respond with JSON only: "
+    '{"score": <0-50>, "fit": "<perfect|good|partial|poor>", '
+    '"service_category": "<development|data|marketing|automation|migration|none>", '
+    '"reasoning": "<1 sentence why>"}'
+)
 
 # Seeded legacy prompts (see migrations/20260714_0003_agent_profiles.py). A stock
 # install has these in agent_profiles.mission_prompt; we treat them as "not
@@ -51,6 +58,8 @@ def prompt_dir() -> Path:
 def _fallback(agent_name: str) -> str:
     if agent_name == "head":
         return _DEFAULT_HEAD_PROMPT
+    if agent_name == "qualifier":
+        return _DEFAULT_QUALIFIER_PROMPT
     return _DEFAULT_DISCOVERY_PROMPT
 
 
@@ -60,6 +69,13 @@ def file_prompt(agent_name: str) -> str:
     if not path.exists():
         return ""
     return path.read_text(encoding="utf-8").strip()
+
+
+def write_file_prompt(agent_name: str, content: str) -> None:
+    """Write the file-backed system prompt for an agent (creates/replaces agent.md)."""
+    path = _PROMPT_DIR / f"{agent_name}.md"
+    _PROMPT_DIR.mkdir(parents=True, exist_ok=True)
+    path.write_text(content or "", encoding="utf-8")
 
 
 def load_agent_prompt(agent_name: str, db_prompt: str | None = None) -> str:
