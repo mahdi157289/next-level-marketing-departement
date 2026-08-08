@@ -3,6 +3,7 @@ import { useState } from "react";
 import { dispatchAgent } from "../api/agents";
 import { fetchAgentRuns, fetchPipelineRun, fetchPipelineRuns } from "../api/runs";
 import type { AgentRun } from "../api/types";
+import { AgentChat } from "../components/AgentChat";
 import { StatusBadge } from "../components/StatusBadge";
 
 interface PlanJson {
@@ -79,6 +80,11 @@ export default function HeadHQ() {
       <h1>Head HQ</h1>
 
       {flash ? <div className={`flash ${flashErr ? "err" : ""}`}>{flash}</div> : null}
+
+      <div className="panel">
+        <h3>Chat with Head</h3>
+        <AgentChat agentName="head" label="Head" />
+      </div>
 
       <div className="panel">
         <h3>Plan console</h3>

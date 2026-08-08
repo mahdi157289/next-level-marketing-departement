@@ -4,11 +4,21 @@ import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import * as agentsApi from "../api/agents";
 import * as runsApi from "../api/runs";
+import * as agentChatApi from "../api/agent-chat";
 import type { AgentRun, PipelineRun } from "../api/types";
 import HeadHQ from "./HeadHQ";
 
 vi.mock("../api/agents", () => ({
   dispatchAgent: vi.fn(),
+}));
+
+vi.mock("../api/agent-chat", () => ({
+  fetchAgentThreads: vi.fn(),
+  createAgentThread: vi.fn(),
+  fetchAgentMessages: vi.fn(),
+  streamAgentTurn: vi.fn(),
+  fetchAgentPrompt: vi.fn(),
+  saveAgentPrompt: vi.fn(),
 }));
 
 vi.mock("../api/runs", () => ({
@@ -113,5 +123,22 @@ describe("HeadHQ", () => {
     renderHQ();
     expect(await screen.findByText("No head runs yet.")).toBeInTheDocument();
     expect(screen.getByText("No pipeline runs yet.")).toBeInTheDocument();
+  });
+
+  it("renders a chat panel for the head agent", async () => {
+    vi.mocked(runsApi.fetchAgentRuns).mockResolvedValue([]);
+    vi.mocked(runsApi.fetchPipelineRuns).mockResolvedValue([]);
+    vi.mocked(agentChatApi.fetchAgentThreads).mockResolvedValue([
+      { id: "t1", title: "planning", created_at: null, updated_at: null },
+    ]);
+    vi.mocked(agentChatApi.fetchAgentMessages).mockResolvedValue([]);
+
+    renderHQ();
+
+    expect(screen.getByText("Chat with Head")).toBeInTheDocument();
+    expect(await screen.findByText("planning")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("planning"));
+    expect(screen.getByPlaceholderText("Message the Head…")).toBeInTheDocument();
   });
 });
