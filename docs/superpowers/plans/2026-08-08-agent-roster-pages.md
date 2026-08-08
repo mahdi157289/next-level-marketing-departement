@@ -235,6 +235,7 @@ git commit -m "feat: llm_chat tool available to every roster agent"
 
 **Files:**
 - Modify: `crm/service.py:461-513` (`list_agent_profiles`, `get_agent_profile`, `update_agent_profile`)
+- Modify: `crm/schemas.py:167` — `AgentProfileOut.mission_prompt` `str` → `Optional[str] = None` (required: the roster fallback returns `mission_prompt=None`, and `GET /crm/agents` / `/api/agents` validate through this model; without it the control suite's `test_list_and_get_agent_profiles` fails with `ResponseValidationError`)
 - Test: `tests/test_agent_roster.py` (append)
 
 **Interfaces:**
