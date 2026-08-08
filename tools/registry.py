@@ -31,7 +31,10 @@ TOOL_CATALOG: List[Dict[str, Any]] = [
     {
         "id": "llm_chat",
         "label": "LiteLLM / LM Studio chat",
-        "agents": ["discovery", "head"],
+        "agents": [
+            "discovery", "head", "qualifier", "categorization",
+            "analysis", "outreach", "content",
+        ],
     },
     {
         "id": "seo_audit",

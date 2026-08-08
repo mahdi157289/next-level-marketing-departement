@@ -37,5 +37,15 @@ def test_roster_entry_unknown_returns_none():
     assert roster_entry("nonexistent") is None
 
 
+def test_llm_chat_available_to_all_roster_agents():
+    from tools.registry import catalog_for_agent, validate_tool_ids
+
+    for name in roster_names():
+        ids = {t["id"] for t in catalog_for_agent(name)}
+        assert "llm_chat" in ids, name
+        tools = ["llm_chat"] if name != "discovery" else ["llm_chat", "web_search"]
+        assert validate_tool_ids(tools, agent_name=name) == tools
+
+
 def _database_url() -> Optional[str]:
     return os.getenv("DATABASE_URL")
