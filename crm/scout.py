@@ -11,7 +11,7 @@ from typing import Any, Callable, Dict, List, Optional
 from agents import lm_client
 from config.settings import get_settings
 from crm import service
-from knowledge.prompts import scout_profile_with_prompt
+from knowledge.prompts import load_agent_prompt
 from knowledge.retrieval import build_brain_context
 from tools import registry
 
@@ -58,18 +58,28 @@ _FALLBACK_DECISION_PROMPT = (
 )
 
 
-def _load_scout_profile() -> Dict[str, Any]:
+def _load_agent_profile(agent_name: str) -> Dict[str, Any]:
     s = get_settings()
     try:
-        profile = service.get_agent_profile("discovery") or {}
-    except Exception:
+        profile = service.get_agent_profile(agent_name) or {}
+    except Exception:  # noqa: BLE001
         profile = {}
-    profile = scout_profile_with_prompt(profile)
+    if agent_name == "discovery":
+        model = profile.get("model") or s.agent_model_discovery
+        tools = list(profile.get("enabled_tools") or [])
+    else:
+        model = profile.get("model") or s.agent_model_head
+        tools = list(profile.get("enabled_tools") or ["llm_chat"])
+    mission_prompt = load_agent_prompt(agent_name, profile.get("mission_prompt"))
     return {
-        "model": profile.get("model") or s.agent_model_discovery,
-        "mission_prompt": profile.get("mission_prompt") or "You are the Scout.",
-        "enabled_tools": list(profile.get("enabled_tools") or []),
+        "model": model,
+        "mission_prompt": mission_prompt or "You are the Agent.",
+        "enabled_tools": tools,
     }
+
+
+def _load_scout_profile() -> Dict[str, Any]:
+    return _load_agent_profile("discovery")
 
 
 def _tool_callable(name: str) -> Optional[Callable[..., Any]]:
@@ -111,7 +121,8 @@ def _execute_tool(call: Dict[str, Any], enabled: Optional[List[str]] = None) -> 
         return {"tool_name": name, "args": args, "result": None, "error": str(exc)}
 
 
-def run_scout_turn(
+def run_agent_turn(
+    agent_name: str,
     thread_id: str,
     user_text: str,
     *,
@@ -119,20 +130,20 @@ def run_scout_turn(
     profile: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     if profile is None:
-        profile = _load_scout_profile()
+        profile = _load_agent_profile(agent_name)
     enabled_tools = profile.get("enabled_tools") or []
     enabled_set = set(enabled_tools)
     if enabled_set:
         advertised_tools = [t for t in _TOOLS_SCHEMA if t["function"]["name"] in enabled_set]
     else:
         advertised_tools = _TOOLS_SCHEMA
-    service.add_scout_message(thread_id, "user", content=user_text)
+    service.add_scout_message(thread_id, "user", content=user_text, agent_name=agent_name)
 
     history = service.list_scout_messages(thread_id, limit=200)
     sys_content = profile["mission_prompt"]
     latest_user = (history[-1].get("content") or "") if history else user_text
     try:
-        ctx = build_brain_context("scout", latest_user)
+        ctx = build_brain_context(agent_name, latest_user)
         if ctx:
             sys_content = f"{sys_content}\n\n{ctx}"
     except Exception:  # noqa: BLE001
@@ -161,7 +172,7 @@ def run_scout_turn(
             )
             tool_calls = resp.get("tool_calls") or []
             assistant_text = resp.get("content") or ""
-        except Exception:
+        except Exception:  # noqa: BLE001
             tool_calls = _run_fallback_tools(messages)
             assistant_text = ""
 
@@ -178,6 +189,7 @@ def run_scout_turn(
                 tool_name=outcome["tool_name"],
                 tool_args=outcome["args"],
                 tool_result={"result": outcome["result"], "error": outcome["error"]},
+                agent_name=agent_name,
             )
             message_ids.append(str(msg["id"]))
             messages.append(
@@ -195,7 +207,7 @@ def run_scout_turn(
             max_tokens=1024,
         )
 
-    msg = service.add_scout_message(thread_id, "assistant", content=assistant_text)
+    msg = service.add_scout_message(thread_id, "assistant", content=assistant_text, agent_name=agent_name)
     message_ids.append(str(msg["id"]))
 
     return {
@@ -204,3 +216,19 @@ def run_scout_turn(
         "tool_calls": tool_calls_made,
         "message_ids": message_ids,
     }
+
+
+def run_scout_turn(
+    thread_id: str,
+    user_text: str,
+    *,
+    max_tool_iterations: int = _MAX_TOOL_ITERATIONS,
+    profile: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    return run_agent_turn(
+        "discovery",
+        thread_id,
+        user_text,
+        max_tool_iterations=max_tool_iterations,
+        profile=profile,
+    )
