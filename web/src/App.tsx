@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import ScoutHQ from "./pages/ScoutHQ";
+import HeadHQ from "./pages/HeadHQ";
 import Leads from "./pages/Leads";
 import LeadsDetail from "./pages/LeadsDetail";
 import Runs from "./pages/Runs";
@@ -17,6 +18,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/scout-hq" element={<ScoutHQ />} />
+          <Route path="/head-hq" element={<HeadHQ />} />
           <Route path="/leads" element={<Leads />} />
           <Route path="/leads/:id" element={<LeadsDetail />} />
           <Route path="/runs" element={<Runs />} />
