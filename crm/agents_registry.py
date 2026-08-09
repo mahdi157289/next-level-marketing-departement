@@ -61,5 +61,5 @@ def roster_entry(name: str) -> Optional[Dict[str, object]]:
     """Return the roster entry for ``name`` or ``None`` if not on the roster."""
     for entry in AGENT_ROSTER:
         if entry["name"] == name:
-            return entry
+            return dict(entry)
     return None

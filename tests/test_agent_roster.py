@@ -24,6 +24,9 @@ def test_roster_entries_are_well_formed():
     assert len(AGENT_ROSTER) == 7
     seen = set()
     for entry in AGENT_ROSTER:
+        assert set(entry.keys()) == {
+            "name", "display_name", "description", "default_tools", "providers",
+        }
         assert entry["name"] not in seen
         seen.add(entry["name"])
         assert entry["display_name"]
@@ -38,12 +41,16 @@ def test_roster_entry_unknown_returns_none():
 
 
 def test_llm_chat_available_to_all_roster_agents():
-    from tools.registry import catalog_for_agent, validate_tool_ids
+    from tools.registry import (
+        DISCOVERY_REQUIRED_TOOLS,
+        catalog_for_agent,
+        validate_tool_ids,
+    )
 
     for name in roster_names():
         ids = {t["id"] for t in catalog_for_agent(name)}
         assert "llm_chat" in ids, name
-        tools = ["llm_chat"] if name != "discovery" else ["llm_chat", "web_search"]
+        tools = sorted(DISCOVERY_REQUIRED_TOOLS) if name == "discovery" else ["llm_chat"]
         assert validate_tool_ids(tools, agent_name=name) == tools
 
 
@@ -87,19 +94,31 @@ def test_get_agent_profile_unknown_returns_none():
 @pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
 def test_patch_qualifier_upserts_row(client):
     from crm import service
+    from db.models import AgentProfile
+    from db.session import SessionLocal
 
-    r = client.patch(
-        "/api/agents/qualifier",
-        json={"display_name": "Qualifier 2.0", "mission_prompt": "Score leads"},
-    )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["agent_name"] == "qualifier"
-    assert body["display_name"] == "Qualifier 2.0"
-    assert body["mission_prompt"] == "Score leads"
-    row = service.get_agent_profile("qualifier")
-    assert row is not None
-    assert row["display_name"] == "Qualifier 2.0"
+    try:
+        r = client.patch(
+            "/api/agents/qualifier",
+            json={"display_name": "Qualifier 2.0", "mission_prompt": "Score leads"},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["agent_name"] == "qualifier"
+        assert body["display_name"] == "Qualifier 2.0"
+        assert body["mission_prompt"] == "Score leads"
+        row = service.get_agent_profile("qualifier")
+        assert row is not None
+        assert row["display_name"] == "Qualifier 2.0"
+    finally:
+        session = SessionLocal()
+        try:
+            row = session.get(AgentProfile, "qualifier")
+            if row:
+                session.delete(row)
+                session.commit()
+        finally:
+            session.close()
 
 
 @pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
@@ -119,3 +138,25 @@ def test_roster_chat_and_prompt_endpoints(client):
 
     r = client.get("/api/agents/nonexistent/prompt")
     assert r.status_code == 400
+
+
+@pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
+def test_legacy_ui_roster_agent_renders_no_none_prompt(client):
+    r = client.get("/crm/ui/agents/qualifier")
+    assert r.status_code == 200, r.text
+    assert ">None</textarea>" not in r.text
+
+
+def test_roster_default_tools_are_advertised():
+    from tools.registry import catalog_for_agent
+
+    for entry in AGENT_ROSTER:
+        advertised = {t["id"] for t in catalog_for_agent(entry["name"])}
+        assert set(entry["default_tools"]) <= advertised, entry["name"]
+
+
+def test_roster_entry_known_name_returns_entry():
+    entry = roster_entry("head")
+    assert entry is not None
+    assert entry["name"] == "head"
+    assert entry["display_name"] == "Head (Supervisor)"

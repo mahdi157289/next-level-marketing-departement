@@ -60,7 +60,7 @@
   </div>
   <div class="form-row">
     <label for="mission_prompt">Mission prompt</label>
-    <textarea id="mission_prompt" name="mission_prompt" required>{{ agent.mission_prompt }}</textarea>
+    <textarea id="mission_prompt" name="mission_prompt" required>{{ agent.mission_prompt or "" }}</textarea>
   </div>
   <div class="form-row">
     <label for="model">Model override (blank = settings default)</label>

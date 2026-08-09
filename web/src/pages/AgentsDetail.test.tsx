@@ -109,7 +109,10 @@ describe("AgentsDetail", () => {
         {
           id: "llm_chat",
           label: "LiteLLM / LM Studio chat",
-          agents: ["discovery", "head", "qualifier"],
+          agents: [
+            "discovery", "head", "qualifier", "categorization",
+            "analysis", "outreach", "content",
+          ],
         },
       ],
     });
