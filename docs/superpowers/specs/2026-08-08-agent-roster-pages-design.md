@@ -1,6 +1,6 @@
 # Agent Roster Pages (all agents) — Design Spec
 
-> **Date:** 2026-08-08  **Status:** Design approved.
+> **Date:** 2026-08-08  **Status:** Implemented (committed).
 > **Stack:** Docker (postgres, janusgraph, redis, litellm, app, web), Windows host, React + TS + @tanstack/react-query, FastAPI.
 > **Goal:** Give every agent in the department a dedicated page (not just Scout/Head HQs). Planned-but-unbuilt agents get working pages too, so their system prompt and provider keys can be configured ahead of implementation.
 > **Scope note:** This phase ships the roster + pages only. The per-agent **LLM provider** card (model + base URL + API key) and the runtime wiring so agents use their own LLM config are **deferred** to a follow-up phase.
