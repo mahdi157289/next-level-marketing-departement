@@ -521,7 +521,9 @@ git commit -m "feat: derive agent chat/prompt allowlist from the roster"
 
 **Files:**
 - Modify: `web/src/pages/AgentsDetail.test.tsx` (append a test)
-- Test: the file itself
+- Modify: `web/src/api/types.ts:104` — `mission_prompt: string` → `string | null` (roster fallback returns `mission_prompt: null`; the frontend type must match)
+- Modify: `web/src/pages/AgentsDetail.tsx:162` — `defaultValue={agent.mission_prompt}` → `defaultValue={agent.mission_prompt ?? ""}` (required once the type is nullable; null → empty textarea, behavior-preserving)
+- Test: the test file itself
 
 **Interfaces:**
 - Consumes: the generalized `AgentsDetail` page (no component changes) + Task 3/4 backend behavior.
