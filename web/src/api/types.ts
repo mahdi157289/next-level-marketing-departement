@@ -101,7 +101,7 @@ export interface AgentSecretSet {
 export interface AgentProfile {
   agent_name: string;
   display_name: string;
-  mission_prompt: string;
+  mission_prompt: string | null;
   enabled_tools: string[];
   model: string | null;
   default_seed_query: string | null;

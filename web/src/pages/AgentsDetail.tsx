@@ -159,7 +159,7 @@ export default function AgentsDetail() {
           </div>
           <div className="form-row">
             <label htmlFor="mission_prompt">Mission prompt</label>
-            <textarea id="mission_prompt" name="mission_prompt" rows={8} defaultValue={agent.mission_prompt} />
+            <textarea id="mission_prompt" name="mission_prompt" rows={8} defaultValue={agent.mission_prompt ?? ""} />
           </div>
           <div className="form-row">
             <label htmlFor="model">Model override (blank = settings default)</label>

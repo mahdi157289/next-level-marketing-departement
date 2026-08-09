@@ -95,4 +95,45 @@ describe("AgentsDetail", () => {
     expect(await screen.findByText("System prompt (agent.md)")).toBeInTheDocument();
     expect(screen.getByDisplayValue("# Discovery")).toBeInTheDocument();
   });
+
+  it("renders chat + prompt editor + provider keys for qualifier (roster-only)", async () => {
+    vi.mocked(agentsApi.fetchAgent).mockResolvedValue({
+      agent_name: "qualifier",
+      display_name: "Qualifier",
+      mission_prompt: null,
+      enabled_tools: ["llm_chat"],
+      model: null,
+      default_seed_query: null,
+      updated_at: null,
+      available_tools: [
+        {
+          id: "llm_chat",
+          label: "LiteLLM / LM Studio chat",
+          agents: ["discovery", "head", "qualifier"],
+        },
+      ],
+    });
+    vi.mocked(agentsApi.fetchProviders).mockResolvedValue([]);
+    vi.mocked(agentChatApi.fetchAgentThreads).mockResolvedValue([
+      { id: "t1", title: "scoring", created_at: null, updated_at: null },
+    ]);
+    vi.mocked(agentChatApi.fetchAgentMessages).mockResolvedValue([]);
+    vi.mocked(agentChatApi.fetchAgentPrompt).mockResolvedValue({
+      agent_name: "qualifier",
+      exists: false,
+      content: "",
+      resolved_prompt: "",
+    });
+
+    renderDetail("qualifier");
+
+    expect(await screen.findByText("Qualifier")).toBeInTheDocument();
+    expect(await screen.findByText("System prompt (agent.md)")).toBeInTheDocument();
+    expect(
+      screen.getByText("Provider API keys (hashed fingerprint shown)"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByText("scoring"));
+    expect(screen.getByPlaceholderText("Message the Qualifier…")).toBeInTheDocument();
+  });
 });
