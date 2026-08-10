@@ -29,7 +29,7 @@
 **Interfaces:**
 - Produces: `leads.research` JSON column (nullable); every `agent_profiles.enabled_tools` includes `"hunter"`; `Lead.research` attribute.
 
-- [ ] **Step 1: Write the failing test** (new `tests/test_hunter_db.py`)
+- [x] **Step 1: Write the failing test** (new `tests/test_hunter_db.py`)
 
 ```python
 """DB tests for the hunter research column."""
@@ -74,26 +74,27 @@ def test_lead_research_roundtrip():
         _cleanup(url)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/test_hunter_db.py::test_lead_research_roundtrip -q`
 Expected: FAIL — `UndefinedColumn: column leads.research does not exist`
 
-- [ ] **Step 3: Write migration**
+- [x] **Step 3: Write migration**
 
 ```python
 """Add leads.research + enable hunter tool on all profiles.
 
 Revision ID: 20260810_0013
-Revises: 20260809_0011
+Revises: 20260810_0012
 """
 from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "20260810_0013"
-down_revision: Union[str, None] = "20260809_0011"
+down_revision: Union[str, None] = "20260810_0012"
 branch_labels = None
 depends_on = None
 
@@ -104,13 +105,20 @@ def upgrade() -> None:
     rows = conn.execute(sa.text(
         "SELECT agent_name, enabled_tools FROM agent_profiles WHERE enabled_tools IS NOT NULL"
     )).fetchall()
+    # Bind as postgresql.JSON so SQLAlchemy serializes the list — a raw sa.text
+    # bind adapts the list as text[] and the UPDATE fails with DatatypeMismatch.
+    profiles = sa.table(
+        "agent_profiles",
+        sa.column("agent_name", sa.String),
+        sa.column("enabled_tools", postgresql.JSON),
+    )
     for agent_name, enabled_tools in rows:
         tools = list(enabled_tools or [])
         if "hunter" not in tools:
             tools.append("hunter")
         conn.execute(
-            sa.text("UPDATE agent_profiles SET enabled_tools = :t WHERE agent_name = :n"),
-            {"t": tools, "n": agent_name},
+            profiles.update().where(profiles.c.agent_name == agent_name),
+            {"enabled_tools": tools},
         )
 
 
@@ -118,13 +126,13 @@ def downgrade() -> None:
     op.drop_column("leads", "research")
 ```
 
-- [ ] **Step 4: Add model column** — in `db/models.py` after `tags = Column(JSON)` (line ~54):
+- [x] **Step 4: Add model column** — in `db/models.py` after `tags = Column(JSON)` (line ~54):
 
 ```python
     research = Column(JSON)
 ```
 
-- [ ] **Step 5: Persist `research` in `crm/service.py`** — `enrich_lead` (line ~297) has a hardcoded whitelist; without adding `research` here, `enrich_missing` silently drops it (the loop never sets the attribute), and the roundtrip test stays red.
+- [x] **Step 5: Persist `research` in `crm/service.py`** — `enrich_lead` (line ~297) has a hardcoded whitelist; without adding `research` here, `enrich_missing` silently drops it (the loop never sets the attribute), and the roundtrip test stays red.
 
 Add `"research"` to the whitelist tuple:
 
@@ -146,7 +154,7 @@ And special-case the dict value *before* `_clean_field` (which would stringify i
                 val = val if isinstance(val, list) else None
 ```
 
-- [ ] **Step 6: Apply migration + run test**
+- [x] **Step 6: Apply migration + run test**
 
 Run:
 ```
@@ -155,7 +163,7 @@ $env:DATABASE_URL="postgresql://admin:secret@127.0.0.1:5433/marketing_db"; pytho
 Then: `python -m pytest tests/test_hunter_db.py::test_lead_research_roundtrip -q`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add migrations/versions/20260810_0013_hunter_research.py db/models.py crm/service.py tests/test_hunter_db.py
@@ -176,7 +184,7 @@ git commit -m "feat: add leads.research column + persist research via enrich"
   - `_domain(url: str) -> str`
   - `_build_queries(name, url, industry, country, gaps) -> List[str]`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 from tools.hunter_tool import _build_queries, _domain, _huntable_columns
@@ -211,12 +219,12 @@ def test_domain_strips_www_and_scheme():
     assert _domain("") == ""
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_hunter_tool.py -q`
 Expected: FAIL — module/import errors
 
-- [ ] **Step 3: Implement hunter core**
+- [x] **Step 3: Implement hunter core**
 
 ```python
 """hunter — CRM-driven lead investigation tool.
@@ -311,12 +319,12 @@ def _build_queries(
     return queries[:MAX_QUERIES]
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_hunter_tool.py -q`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/hunter_tool.py tests/test_hunter_tool.py
@@ -335,7 +343,7 @@ git commit -m "feat: hunter core - schema-driven columns + gap-targeted query bu
 - Consumes: `tools.web_search_tool._relevance_score`, `tools.scrape_tool._clean_phone`, `tools.scrape_tool._extract_socials`, `agents.lm_client.chat_completion`, `tools.registry.resolve_callable("web_search")`.
 - Produces: `_mine_field(field, hits) -> Any`, `_synthesize_summary(name, industry, country, hits) -> str`, `hunter(name="", url="", industry="", country="", gaps=None, **fields) -> Dict`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 from unittest.mock import patch
@@ -382,12 +390,12 @@ def test_hunter_never_raises_on_search_failure():
     assert out["status"] == "no_results"
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_hunter_tool.py -q`
 Expected: FAIL — `_mine_field`/`hunter` not defined
 
-- [ ] **Step 3: Implement mining + summary + orchestration** (append to `tools/hunter_tool.py`)
+- [x] **Step 3: Implement mining + summary + orchestration** (append to `tools/hunter_tool.py`)
 
 ```python
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
@@ -512,7 +520,7 @@ def hunter(
     """Investigate a lead: detect empty columns, web-search them, mine values, summarize."""
     pseudo = {"name": name, "url": url, "industry": industry, "country": country, **fields}
     if gaps is None:
-        gaps = [c for c in _huntable_columns() if c not in HUNT_DENYLIST and not _is_empty(pseudo.get(c))]
+        gaps = [c for c in _huntable_columns() if c not in HUNT_DENYLIST and _is_empty(pseudo.get(c))]
     queries = _build_queries(name, url=url, industry=industry, country=country, gaps=gaps)
     if not queries:
         return {"summary": "", "fields_found": {}, "sources": [], "queries": [], "status": "no_results",
@@ -566,12 +574,12 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_hunter_tool.py -q`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/hunter_tool.py tests/test_hunter_tool.py
@@ -590,7 +598,7 @@ git commit -m "feat: hunter field mining + summary + orchestration"
 **Interfaces:**
 - Produces: `resolve_callable("hunter")` returns callable; `validate_tool_ids(["hunter"], agent_name=any)` passes; every roster agent's `default_tools` includes `"hunter"`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```python
 from tools.registry import TOOL_CATALOG, resolve_callable, validate_tool_ids
@@ -607,8 +615,15 @@ def test_hunter_resolves():
 
 
 def test_hunter_valid_for_every_agent():
+    from tools.registry import DISCOVERY_REQUIRED_TOOLS
+
     for a in AGENT_ROSTER:
-        validate_tool_ids(["hunter"], agent_name=a["name"])
+        tools = (
+            sorted(DISCOVERY_REQUIRED_TOOLS) + ["hunter"]
+            if a["name"] == "discovery"
+            else ["hunter"]
+        )
+        validate_tool_ids(tools, agent_name=a["name"])
 
 
 def test_hunter_in_all_roster_default_tools():
@@ -616,12 +631,12 @@ def test_hunter_in_all_roster_default_tools():
         assert "hunter" in a["default_tools"]
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `python -m pytest tests/test_hunter_tool.py -k "catalog or resolves or valid or roster" -q`
 Expected: FAIL
 
-- [ ] **Step 3: Implement registry + roster**
+- [x] **Step 3: Implement registry + roster**
 
 In `tools/registry.py`, add to `TOOL_CATALOG` (after the `scrape` entry, line ~52):
 
@@ -647,12 +662,12 @@ In `resolve_callable` (after the `scrape` branch):
 
 In `crm/agents_registry.py`, add `"hunter"` to every agent's `default_tools` list (discovery line ~16, and the single-tool entries for head/qualifier/categorization/analysis/outreach/content → `["llm_chat", "hunter"]`).
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/test_hunter_tool.py -k "catalog or resolves or valid or roster" -q`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/registry.py crm/agents_registry.py tests/test_hunter_tool.py
@@ -671,7 +686,7 @@ git commit -m "feat: register hunter in catalog for all agents"
 - Consumes: `hunter` callable via `resolve_callable("hunter")`, `service.enrich_missing`.
 - Produces: `_enrich_one` writes `research` + `fields_found` when `research` gap exists; adds `"hunt"` to steps.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 @pytest.mark.skipif(not _db_url(), reason="DATABASE_URL not set")
@@ -691,6 +706,10 @@ def test_enrich_one_hunts_missing_fields():
         "facebook": "https://fb.co/h", "instagram": "https://ig.co/h",
         "linkedin": "https://ln.co/h", "twitter": "https://x.co/h", "tags": ["x"],
     })
+    pipeline = service.start_pipeline_run("pytest", "hunt-step", {})
+    agent_run = service.start_agent_run(
+        str(pipeline["id"]), "enrich", model="n/a", input_summary="hunt-step-test"
+    )
     try:
         fake = {
             "summary": "HuntStep summary",
@@ -698,7 +717,7 @@ def test_enrich_one_hunts_missing_fields():
             "sources": [{"title": "t", "url": "https://s.tn", "snippet": "s"}],
             "queries": ["q"], "status": "ok",
         }
-        run = _AgentRunContext(str(lead["id"]))
+        run = _AgentRunContext(str(agent_run["id"]))
         with patch("workflows.enrich_leads.resolve_callable", return_value=lambda *a, **k: fake):
             res = _enrich_one(lead, run, lambda: False)
         assert "hunt" in res["steps"]
@@ -708,16 +727,18 @@ def test_enrich_one_hunts_missing_fields():
         assert fresh["email"] == "a@huntstep.tn"  # gap-only: pre-filled field untouched
     finally:
         _cleanup(url)
+        service.complete_agent_run(str(agent_run["id"]), "success")
+        service.complete_pipeline_run(str(pipeline["id"]), "cancelled", {"reason": "test_cleanup"})
 ```
 
-Note: the lead is created with **every** `FILLABLE_FIELDS` populated so steps 1-4 (maps/scrape/llm/seo) are skipped and only the hunt step runs — keeps the test hermetic (no real LLM/tool calls). `research` is not in `lead_gaps()`, so the hunt step must check the raw field, not `before`.
+Note: the lead is created with **every** `FILLABLE_FIELDS` populated so steps 1-4 (maps/scrape/llm/seo) are skipped and only the hunt step runs — keeps the test hermetic (no real LLM/tool calls). `research` is not in `lead_gaps()`, so the hunt step must check the raw field, not `before`. The run is backed by a real pipeline + agent run because the migrated DB enforces `lead_events_agent_run_id_fkey -> agent_runs.id` (FK from migration `20260711_0002`); the brief's fake lead-id-as-run-id raises `ForeignKeyViolation` there.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/test_enrich_leads.py::test_enrich_one_hunts_missing_fields -q`
 Expected: FAIL — `research` not filled / `hunt` not in steps
 
-- [ ] **Step 3: Implement the hunt step** in `_enrich_one` (after the seo step, before `refreshed`):
+- [x] **Step 3: Implement the hunt step** in `_enrich_one` (after the seo step, before `refreshed`):
 
 ```python
     # 5) Web-search investigation for any remaining gaps (research summary).
@@ -744,12 +765,12 @@ Expected: FAIL — `research` not filled / `hunt` not in steps
 
 `lead_gaps()` only returns `FILLABLE_FIELDS` (`crm/service.py` line ~50), so `research` never appears in `before` — the condition must be `not lead.get("research")` (None/{} is falsy) rather than `"research" in before`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python -m pytest tests/test_enrich_leads.py::test_enrich_one_hunts_missing_fields -q`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add workflows/enrich_leads.py tests/test_enrich_leads.py
@@ -767,7 +788,7 @@ git commit -m "feat: enrich workflow runs hunter to fill gaps + research summary
 **Interfaces:**
 - Produces: `/api/leads/{id}` detail includes `research`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```python
 @pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
@@ -794,23 +815,23 @@ def test_api_lead_detail_returns_research(client):
 
 Add `import json` to the imports at the top of `tests/test_api_router.py`:
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `python -m pytest tests/test_api_router.py::test_api_lead_detail_returns_research -q`
 Expected: FAIL — Pydantic response excludes `research`
 
-- [ ] **Step 3: Add to `LeadOut`** (after `tags`, line 85):
+- [x] **Step 3: Add to `LeadOut`** (after `tags`, line 85):
 
 ```python
     research: Optional[dict] = None
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `python -m pytest tests/test_api_router.py::test_api_lead_detail_returns_research -q`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add crm/schemas.py tests/test_api_router.py
@@ -831,7 +852,7 @@ git commit -m "feat: expose leads.research in API schemas"
 - Consumes: `Lead.research?: { summary?: string; sources?: Array<{title?: string; url?: string; snippet?: string}>; status?: string } | null`
 - Produces: Research panel in `LeadsDetail`; research indicator in leads table.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `web/src/pages/LeadsDetail.test.tsx`:
 ```tsx
@@ -889,12 +910,12 @@ it("shows a research indicator on enriched leads", async () => {
 });
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `npx vitest run src/pages/LeadsDetail.test.tsx src/pages/Leads.test.tsx`
 Expected: FAIL — type errors / no Research panel
 
-- [ ] **Step 3: Add the type** in `web/src/api/types.ts` inside `interface Lead`:
+- [x] **Step 3: Add the type** in `web/src/api/types.ts` inside `interface Lead`:
 
 ```ts
   research: {
@@ -906,7 +927,7 @@ Expected: FAIL — type errors / no Research panel
   } | null;
 ```
 
-- [ ] **Step 4: Render the panel** in `web/src/pages/LeadsDetail.tsx` — after the maps link paragraph and before the info panel, add:
+- [x] **Step 4: Render the panel** in `web/src/pages/LeadsDetail.tsx` — after the maps link paragraph and before the info panel, add:
 
 ```tsx
       {lead.research ? (
@@ -940,7 +961,7 @@ Expected: FAIL — type errors / no Research panel
       ) : null}
 ```
 
-- [ ] **Step 5: Add the indicator** in `web/src/pages/Leads.tsx` — in the table cell where status badge renders (or next to the lead name), add:
+- [x] **Step 5: Add the indicator** in `web/src/pages/Leads.tsx` — in the table cell where status badge renders (or next to the lead name), add:
 
 ```tsx
                 {lead.research ? (
@@ -948,17 +969,17 @@ Expected: FAIL — type errors / no Research panel
                 ) : null}
 ```
 
-- [ ] **Step 6: Run tests to verify they pass**
+- [x] **Step 6: Run tests to verify they pass**
 
 Run: `npx vitest run src/pages/LeadsDetail.test.tsx src/pages/Leads.test.tsx`
 Expected: PASS
 
-- [ ] **Step 7: Typecheck**
+- [x] **Step 7: Typecheck**
 
 Run: `npx tsc --noEmit`
 Expected: no output (clean)
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add web/src/api/types.ts web/src/pages/LeadsDetail.tsx web/src/pages/Leads.tsx web/src/pages/LeadsDetail.test.tsx web/src/pages/Leads.test.tsx
@@ -972,22 +993,22 @@ git commit -m "feat: show lead research summary + sources in UI"
 **Files:**
 - Test: whole suite
 
-- [ ] **Step 1: Run backend suite**
+- [x] **Step 1: Run backend suite**
 
 Run: `$env:DATABASE_URL="postgresql://admin:secret@127.0.0.1:5433/marketing_db"; python -m pytest -q -p no:cacheprovider`
 Expected: all pass (existing 152 + new tests)
 
-- [ ] **Step 2: Run frontend suite + build**
+- [x] **Step 2: Run frontend suite + build**
 
 Run (in `web/`): `npm test` then `npm run build`
 Expected: all pass; build succeeds
 
-- [ ] **Step 3: Live smoke test (optional)** — run `hunter` on one real lead:
+- [x] **Step 3: Live smoke test (optional)** — run `hunter` on one real lead:
 
 Run: `python -c "from tools.hunter_tool import hunter; import json; print(json.dumps(hunter(name='WEBI', url='https://www.webi.tn/', country='Tunisia', gaps=['email','instagram']), ensure_ascii=True)[:800])"`
 Expected: a payload with `status`, `fields_found`, `sources`, `summary`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add -A
