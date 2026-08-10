@@ -1,6 +1,8 @@
 from unittest.mock import patch
 
+from crm.agents_registry import AGENT_ROSTER
 from tools.hunter_tool import _build_queries, _domain, _huntable_columns, _mine_field, hunter
+from tools.registry import TOOL_CATALOG, resolve_callable, validate_tool_ids
 
 HITS = [
     {"title": "Acme - Contact", "url": "https://acme.tn/contact",
@@ -80,3 +82,29 @@ def test_domain_strips_www_and_scheme():
     assert _domain("https://www.acme.tn/") == "acme.tn"
     assert _domain("http://acme.com") == "acme.com"
     assert _domain("") == ""
+
+
+def test_hunter_in_catalog_for_all_agents():
+    entry = next(t for t in TOOL_CATALOG if t["id"] == "hunter")
+    assert set(entry["agents"]) == {a["name"] for a in AGENT_ROSTER}
+
+
+def test_hunter_resolves():
+    assert callable(resolve_callable("hunter"))
+
+
+def test_hunter_valid_for_every_agent():
+    from tools.registry import DISCOVERY_REQUIRED_TOOLS
+
+    for a in AGENT_ROSTER:
+        tools = (
+            sorted(DISCOVERY_REQUIRED_TOOLS) + ["hunter"]
+            if a["name"] == "discovery"
+            else ["hunter"]
+        )
+        validate_tool_ids(tools, agent_name=a["name"])
+
+
+def test_hunter_in_all_roster_default_tools():
+    for a in AGENT_ROSTER:
+        assert "hunter" in a["default_tools"]

@@ -51,6 +51,14 @@ TOOL_CATALOG: List[Dict[str, Any]] = [
         "label": "Playwright scrape",
         "agents": ["discovery"],
     },
+    {
+        "id": "hunter",
+        "label": "CRM lead investigation: hunt missing fields via web search",
+        "agents": [
+            "discovery", "head", "qualifier", "categorization",
+            "analysis", "outreach", "content",
+        ],
+    },
 ]
 
 _KNOWN_IDS = {t["id"] for t in TOOL_CATALOG}
@@ -162,6 +170,10 @@ def resolve_callable(tool_id: str) -> Optional[Callable[..., Any]]:
         from tools.scrape_tool import scrape_tool
 
         return scrape_tool
+    if tool_id == "hunter":
+        from tools.hunter_tool import hunter
+
+        return hunter
     if tool_id in ("crm_write_leads", "llm_chat"):
         return None  # handled inline by agents
     return None
