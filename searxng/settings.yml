@@ -1,0 +1,12 @@
+use_default_settings: true
+
+server:
+  secret_key: "marketing_searxng_secret"
+  limiter: false
+  public_instance: false
+  method: "GET"
+
+search:
+  formats:
+    - html
+    - json

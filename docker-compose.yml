@@ -73,6 +73,25 @@ services:
     volumes:
       - janusgraph_data:/var/lib/janusgraph
 
+  searxng:
+    image: searxng/searxng:latest
+    container_name: marketing_searxng
+    ports:
+      - "8080:8080"
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-marketing_searxng_secret}
+      SEARXNG_LIMITER: "false"
+      SEARXNG_PUBLIC_INSTANCE: "false"
+      SEARXNG_METHOD: GET
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/')"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+
   app:
     build: .
     container_name: marketing_app
@@ -94,12 +113,15 @@ services:
       OLLAMA_BASE_URL: http://nextlevel-ollama:11434
       JANUSGRAPH_BASE_URL: ws://janusgraph:8182/gremlin
       REDIS_URL: redis://redis:6379/2
+      SEARXNG_BASE_URL: http://searxng:8080
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       litellm:
+        condition: service_healthy
+      searxng:
         condition: service_healthy
     volumes:
       - ./data:/app/data

@@ -17,6 +17,10 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
+from config.settings import get_settings
+
+import httpx
+
 logger = logging.getLogger(__name__)
 
 # Filled on failure for operators (pytest -s / real_verification prints it).
@@ -129,62 +133,94 @@ def _dedupe_by_url(hits: List[Dict[str, str]]) -> List[Dict[str, str]]:
     return out
 
 
+def searxng_search(query: str, max_results: int = 10) -> List[Dict[str, str]]:
+    """Self-hosted SearXNG JSON search → [{title, url, snippet}]. Never raises."""
+    s = get_settings()
+    base = (s.searxng_base_url or "").strip().rstrip("/")
+    if not base:
+        return []
+    try:
+        resp = httpx.get(
+            f"{base}/search",
+            params={"q": query, "format": "json", "pageno": 1},
+            timeout=s.searxng_timeout_s,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    except BaseException as e:  # noqa: BLE001
+        logger.warning("searxng_search: query=%r failed: %s", query, e)
+        return []
+    out: List[Dict[str, str]] = []
+    for item in data.get("results") or []:
+        url = str(item.get("url") or item.get("href") or "").strip()
+        if not url:
+            continue
+        out.append({
+            "title": str(item.get("title") or ""),
+            "url": url,
+            "snippet": str(item.get("content") or item.get("snippet") or ""),
+        })
+        if len(out) >= max_results:
+            break
+    return out
+
+
 def web_search_tool(query: str, max_results: int = 10) -> List[Dict[str, str]]:
     """Search and return list of {title, url, snippet}. Empty list if all attempts fail."""
     global _LAST_WEB_SEARCH_DIAG
     _LAST_WEB_SEARCH_DIAG = ""
 
-    backends = _discover_ddgs_classes()
-    if not backends:
-        _LAST_WEB_SEARCH_DIAG = "No search backend installed. Run: pip install ddgs"
-        logger.error(_LAST_WEB_SEARCH_DIAG)
-        return []
-
     last_exc: Optional[BaseException] = None
-    collected: List[Dict[str, str]] = []
-    tried: List[str] = []
+    tried: List[str] = ["searxng"]
+    collected: List[Dict[str, str]] = searxng_search(query, max_results=max(max_results * 2, 8))
 
-    fetch_n = max(max_results * 2, 8)
-    per_engine_timeout_s = 12.0
+    if len(_dedupe_by_url(collected)) < max_results:
+        backends = _discover_ddgs_classes()
+        if backends:
+            fetch_n = max(max_results * 2, 8)
+            per_engine_timeout_s = 12.0
 
-    def _fetch(DDGS: Callable[[], Any], engine: str) -> List[Dict[str, Any]]:
-        with DDGS() as client:
-            return list(
-                client.text(
-                    query,
-                    max_results=fetch_n,
-                    region="wt-wt",
-                    backend=engine,
-                )
-            )
+            def _fetch(DDGS: Callable[[], Any], engine: str) -> List[Dict[str, Any]]:
+                with DDGS() as client:
+                    return list(
+                        client.text(
+                            query,
+                            max_results=fetch_n,
+                            region="wt-wt",
+                            backend=engine,
+                        )
+                    )
 
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 
-    for label, DDGS in backends:
-        for engine in _DDGS_ENGINE_ORDER:
-            tried.append(f"{label}:{engine}")
-            try:
-                time.sleep(0.15)
-                with ThreadPoolExecutor(max_workers=1) as pool:
-                    fut = pool.submit(_fetch, DDGS, engine)
-                    raw = fut.result(timeout=per_engine_timeout_s)
-                for x in raw:
-                    if isinstance(x, dict):
-                        collected.append(_normalize_item(x))
-            except FuturesTimeout:
-                last_exc = TimeoutError(f"{label}:{engine} timed out after {per_engine_timeout_s}s")
-                logger.warning("web_search_tool: %s", last_exc)
-                continue
-            except BaseException as e:
-                last_exc = e
-                logger.warning("web_search_tool: %s/%s failed: %s", label, engine, e)
-                continue
+            for label, DDGS in backends:
+                for engine in _DDGS_ENGINE_ORDER:
+                    tried.append(f"{label}:{engine}")
+                    try:
+                        time.sleep(0.15)
+                        with ThreadPoolExecutor(max_workers=1) as pool:
+                            fut = pool.submit(_fetch, DDGS, engine)
+                            raw = fut.result(timeout=per_engine_timeout_s)
+                        for x in raw:
+                            if isinstance(x, dict):
+                                collected.append(_normalize_item(x))
+                    except FuturesTimeout:
+                        last_exc = TimeoutError(f"{label}:{engine} timed out after {per_engine_timeout_s}s")
+                        logger.warning("web_search_tool: %s", last_exc)
+                        continue
+                    except BaseException as e:
+                        last_exc = e
+                        logger.warning("web_search_tool: %s/%s failed: %s", label, engine, e)
+                        continue
 
-            ranked_preview = [h for h in collected if _relevance_score(h, query) > 0]
-            if len(_dedupe_by_url(ranked_preview)) >= max_results:
-                break
-        if len([h for h in collected if _relevance_score(h, query) > 0]) >= max_results:
-            break
+                    ranked_preview = [h for h in collected if _relevance_score(h, query) > 0]
+                    if len(_dedupe_by_url(ranked_preview)) >= max_results:
+                        break
+                if len([h for h in collected if _relevance_score(h, query) > 0]) >= max_results:
+                    break
+        else:
+            _LAST_WEB_SEARCH_DIAG = "No search backend installed. Run: pip install ddgs"
+            logger.error(_LAST_WEB_SEARCH_DIAG)
 
     normalized = [r for r in _dedupe_by_url(collected) if r.get("url")]
     ranked = sorted(normalized, key=lambda h: _relevance_score(h, query), reverse=True)

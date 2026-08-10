@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/2"
     brain_cache_ttl_s: int = 3600
     orchestrator_workers: int = 3
+    searxng_base_url: str = ""
+    searxng_timeout_s: float = 8.0
+    site_extract_timeout_s: float = 45.0
+    site_extract_max_markdown_chars: int = 12000
+    crawl_cache_enabled: bool = True
+    crawl_embed_content: bool = True
 
     def openai_base_url(self) -> str:
         base = (self.openai_api_base or "").strip()
