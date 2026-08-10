@@ -287,3 +287,42 @@ def test_enrich_one_hunts_missing_fields():
         _cleanup(url)
         service.complete_agent_run(str(agent_run["id"]), "success")
         service.complete_pipeline_run(str(pipeline["id"]), "cancelled", {"reason": "test_cleanup"})
+
+
+@pytest.mark.skipif(not _db_url(), reason="DATABASE_URL not set")
+def test_enrich_one_passes_current_values_to_hunter_as_fields():
+    from unittest.mock import patch
+
+    from crm.client import _AgentRunContext
+    from workflows.enrich_leads import _enrich_one
+
+    url = _unique_url("huntpass")
+    lead = service.create_lead({
+        "name": "HuntPass Co", "url": url, "source": "pytest",
+        "google_maps_url": "https://google.com/maps/place/x",
+        "email": "have@huntpass.tn", "phone": "+21622222222",
+        "business_type": "software", "country": "Tunisia", "industry": "Software",
+    })
+    pipeline = service.start_pipeline_run("pytest", "hunt-pass", {})
+    agent_run = service.start_agent_run(
+        str(pipeline["id"]), "enrich", model="n/a", input_summary="hunt-pass-test"
+    )
+    try:
+        captured: dict = {}
+        fake = {"summary": "s", "fields_found": {}, "sources": [], "queries": [], "status": "ok"}
+
+        def _fake_hunter(*_a, **_k):
+            captured["kwargs"] = _k
+            return fake
+
+        run = _AgentRunContext(str(agent_run["id"]))
+        with patch("workflows.enrich_leads.resolve_callable", return_value=_fake_hunter):
+            _enrich_one(lead, run, lambda: False)
+        kwargs = captured["kwargs"]
+        assert kwargs["email"] == "have@huntpass.tn"
+        assert kwargs["phone"] == "+21622222222"
+        assert kwargs["twitter"] is None
+    finally:
+        _cleanup(url)
+        service.complete_agent_run(str(agent_run["id"]), "success")
+        service.complete_pipeline_run(str(pipeline["id"]), "cancelled", {"reason": "test_cleanup"})

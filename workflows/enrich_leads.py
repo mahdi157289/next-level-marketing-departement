@@ -260,6 +260,8 @@ def _enrich_one(
                     url=lead.get("url") or "",
                     industry=lead.get("industry") or "",
                     country=lead.get("country") or "",
+                    **{k: lead.get(k) for k in service.FILLABLE_FIELDS
+                       if k not in ("industry", "country")},
                 )
             except BaseException:
                 hunt = None
