@@ -74,7 +74,11 @@ export default function Leads() {
                 <tr key={lead.id}>
                   <td><Link to={`/leads/${lead.id}`}>{lead.name ?? "—"}</Link></td>
                   <td>{lead.url ? <a href={lead.url} target="_blank" rel="noopener noreferrer">{lead.url}</a> : "—"}</td>
-                  <td><StatusBadge status={lead.status} /></td>
+                  <td><StatusBadge status={lead.status} />{" "}
+                    {lead.research ? (
+                      <span title="Research available" style={{ cursor: "default" }}>🔎</span>
+                    ) : null}
+                  </td>
                   <td>{lead.source ?? "—"}</td>
                   <td>{lead.industry ?? "—"}</td>
                   <td>{lead.business_type ?? "—"}</td>

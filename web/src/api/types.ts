@@ -20,6 +20,13 @@ export interface Lead {
   linkedin: string | null;
   twitter: string | null;
   tags: string[] | null;
+  research: {
+    summary?: string | null;
+    status?: string | null;
+    queries?: string[] | null;
+    fields_found?: Record<string, unknown> | null;
+    sources?: Array<{ title?: string | null; url?: string | null; snippet?: string | null }> | null;
+  } | null;
   lead_score: number | null;
   status: string | null;
   status_notes: string | null;

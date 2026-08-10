@@ -56,6 +56,36 @@ export default function LeadsDetail() {
       {lead.url ? <p className="muted"><a href={lead.url} target="_blank" rel="noopener noreferrer">{lead.url}</a></p> : null}
       {lead.google_maps_url ? <p className="muted"><a href={lead.google_maps_url} target="_blank" rel="noopener noreferrer">View on Google Maps</a></p> : null}
 
+      {lead.research ? (
+        <div className="panel">
+          <h3>Research</h3>
+          {lead.research.status === "ok" ? null : (
+            <p className="muted">Status: {lead.research.status}</p>
+          )}
+          {lead.research.summary ? (
+            <div style={{ whiteSpace: "pre-wrap", marginBottom: 12 }}>{lead.research.summary}</div>
+          ) : (
+            <p className="muted">No summary.</p>
+          )}
+          {lead.research.sources?.length ? (
+            <>
+              <h4>Sources</h4>
+              <ul>
+                {lead.research.sources.map((s, i) => (
+                  <li key={i}>
+                    {s.url ? (
+                      <a href={s.url} target="_blank" rel="noopener noreferrer">{s.title || s.url}</a>
+                    ) : (
+                      s.title
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="panel">
         <table className="data">
           <tbody>
