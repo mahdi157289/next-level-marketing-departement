@@ -11,6 +11,8 @@ import re
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
+import sqlalchemy as sa
+
 from db.models import Lead
 
 MAX_QUERIES = 8
@@ -148,6 +150,33 @@ def _mine_field(field: str, hits: List[Dict[str, Any]]) -> Any:
     return best
 
 
+def _coerce_for_column(field: str, value: Any) -> Any:
+    """Fit a mined value to the lead column's type: truncate strings to the
+    column length, coerce numerics, drop values that can't fit. Returns None
+    when the value can't be stored."""
+    col = Lead.__table__.columns.get(field)
+    if col is None:
+        return value
+    t = col.type
+    if isinstance(t, sa.String):
+        if isinstance(value, str):
+            return value[:t.length] if t.length else value
+        return value
+    if isinstance(t, sa.Integer):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+    if isinstance(t, sa.Float):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+    if getattr(t, "python_type", None) is dict:
+        return value if isinstance(value, (dict, list)) else None
+    return value
+
+
 def _synthesize_summary(name: str, industry: str, country: str, hits: List[Dict[str, Any]]) -> str:
     from agents.lm_client import chat_completion
     from config.settings import get_settings
@@ -227,6 +256,8 @@ def hunter(
             val = _mine_field(field, hits)
         except BaseException:
             val = None
+        if val not in (None, "", [], {}):
+            val = _coerce_for_column(field, val)
         if val not in (None, "", [], {}):
             fields_found[field] = val
     summary = _synthesize_summary(name, industry, country, hits)

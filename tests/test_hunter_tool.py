@@ -26,6 +26,30 @@ def test_mine_unknown_field_uses_best_snippet():
     assert isinstance(val, str) and len(val) > 0
 
 
+def test_mined_values_respect_column_lengths():
+    LONG = "X" * 500
+    H = [{"title": "Acme", "url": "https://acme.tn", "snippet": LONG}]
+    with patch("tools.hunter_tool._run_searches", return_value=H), \
+         patch("tools.hunter_tool._synthesize_summary", return_value="Acme overview."):
+        out = hunter(name="Acme", country="Tunisia",
+                     gaps=["price_level", "business_type"])
+    found = out["fields_found"]
+    if "price_level" in found:
+        assert len(found["price_level"]) <= 16
+    if "business_type" in found:
+        assert len(found["business_type"]) <= 64
+
+
+def test_numeric_columns_never_receive_strings():
+    H = [{"title": "Acme", "url": "https://acme.tn", "snippet": "Acme rating 4.5 120 reviews"}]
+    with patch("tools.hunter_tool._run_searches", return_value=H), \
+         patch("tools.hunter_tool._synthesize_summary", return_value="s"):
+        out = hunter(name="Acme", gaps=["rating", "review_count", "seo_score"])
+    for num in ("rating", "review_count", "seo_score"):
+        if num in out["fields_found"]:
+            assert isinstance(out["fields_found"][num], (int, float))
+
+
 def test_hunter_returns_full_payload_and_fills_gaps():
     with patch("tools.hunter_tool._run_searches", return_value=HITS), \
          patch("tools.hunter_tool._synthesize_summary", return_value="Acme is an agency."):
