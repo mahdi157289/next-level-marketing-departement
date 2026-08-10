@@ -122,6 +122,13 @@ table.data th {
 
 table.data tr:last-child td { border-bottom: none; }
 
+.table-scroll {
+  overflow-x: auto;
+  border-radius: var(--radius);
+}
+
+.table-scroll table.data { min-width: 100%; }
+
 .btn {
   display: inline-block;
   padding: 0.45rem 0.9rem;

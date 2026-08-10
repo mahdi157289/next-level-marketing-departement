@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     openai_api_key: str = "lm-studio"
     agent_model_discovery: str = "mistralai/mistral-7b-instruct-v0.3"
     agent_model_head: str = "mistralai/mistral-7b-instruct-v0.3"
+    # Ceiling for per-mission search budget; Head picks max_search_results ≤ this.
+    head_max_search_results: int = 10
     meta_ads_access_token: str = ""
     agent_chat_timeout_s: float = 120.0
     app_port: int = 8000

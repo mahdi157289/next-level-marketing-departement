@@ -163,6 +163,51 @@ def google_maps_search(
     return results[:max_results]
 
 
+def google_maps_place(url: str, timeout_s: int = 45) -> Optional[Dict[str, Any]]:
+    """Re-scrape a single Google Maps place URL; return a normalized hit or None.
+
+    Delegates to the bundled scrape-urls.js wrapper (one shared browser), which
+    reuses the exact same extraction as the search scraper. Used by the Lead
+    Completion Agent to refresh/complete a lead that already has a maps URL.
+    """
+    u = (url or "").strip()
+    if not u.startswith("http") or "google.com/maps" not in u:
+        return None
+    wrapper_script = os.path.join(_SUPERLEADFINDER_PATH, "scrape-urls.js")
+    if not os.path.exists(wrapper_script):
+        return None
+    try:
+        proc = subprocess.Popen(
+            [_NODE_BIN, wrapper_script, u],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=_SUPERLEADFINDER_PATH,
+        )
+        try:
+            stdout, _ = proc.communicate(timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            return None
+    except Exception:
+        return None
+    for line in stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if data.get("type") == "lead":
+            return _normalize_lead(data.get("data") or {})
+        if data.get("type") == "error":
+            return None
+    return None
+
+
 def _normalize_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize a lead from the Node.js scraper to our standard return format."""
     raw_phone = lead.get("phone", "") or ""
@@ -193,6 +238,7 @@ def _normalize_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
     category = _clean_field(lead.get("category", "") or "")
     hours = _clean_field(lead.get("hours", "") or "")
     description = _clean_field(lead.get("description", "") or "")
+    email = _clean_field(lead.get("email", "") or "")
 
     # Build snippet from cleaned fields (not the raw lead)
     snippet_parts = []
@@ -214,6 +260,7 @@ def _normalize_lead(lead: Dict[str, Any]) -> Dict[str, Any]:
         "snippet": snippet[:500],
         "address": address,
         "phone": phone,
+        "email": email,
         "rating": rating,
         "review_count": review_count,
         "category": category,

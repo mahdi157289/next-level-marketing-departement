@@ -41,11 +41,14 @@ _DEFAULT_MISSION = (
 _PLAN_MISSION = (
     "You are the Head Agent assigning Discovery tools for Next Level Tech Company.\n\n"
     f"## What We Offer\n{_COMPANY}\n\n"
-    "Pick the best seed_query and tools. "
-    "ALWAYS include web_search, llm_chat, and crm_write_leads when allowed. "
-    "Add scrape or seo_audit only when page enrichment is worth the cost. "
-    "Respond with JSON only (no markdown fences): "
-    '{"seed_query":"...","tools":["web_search","crm_write_leads","llm_chat"],'
+    "Build a professional discovery plan for the given goal.\n"
+    "Decide the seed query, how many prospects to collect (max_search_results), "
+    "which tools to use and why, and what insights to share with the operator.\n"
+    "You may only pick tools from the allowed list.\n"
+    "Respond with JSON only (no markdown fences):\n"
+    '{"seed_query":"...","max_search_results":<int 1-10>,"tools":["web_search"],'
+    '"tool_reasons":{"web_search":"why this tool for this mission"},'
+    '"insights":"what to look for, which verticals/geography to prioritize, red flags",'
     '"rationale":"one short sentence"}'
 )
 
@@ -120,24 +123,35 @@ class HeadAgent:
                 json={
                     "mode": "plan_discovery",
                     "seed_query": plan.get("seed_query"),
+                    "max_search_results": plan.get("max_search_results"),
                     "tools": plan.get("tools"),
                     "skill_gaps": plan.get("skill_gaps"),
+                    "tool_reasons": plan.get("tool_reasons"),
+                    "insights": plan.get("insights"),
                     "rationale": plan.get("rationale"),
                 },
             )
             return plan
 
     def _fallback_plan(self, goal: str, allowed: List[str]) -> Dict[str, Any]:
+        from config.settings import get_settings
+
         clamped = clamp_discovery_tools(list(allowed), allowed=allowed)
         return {
             "seed_query": goal.strip(),
+            "max_search_results": get_settings().head_max_search_results,
             "tools": clamped["tools"],
             "skill_gaps": clamped["skill_gaps"],
+            "tool_reasons": {t: "operator-allowed Discovery tool (Head fallback)" for t in clamped["tools"]},
+            "insights": "Fallback plan: no LLM plan available; scout used operator-allowed tools.",
             "rationale": "Fallback: operator-allowed Discovery tools (Head llm_chat off or plan failed).",
             "raw": None,
         }
 
     def _plan_core(self, goal: str, allowed: List[str]) -> Dict[str, Any]:
+        from config.settings import get_settings
+
+        settings = get_settings()
         catalog_lines = "\n".join(
             f"- {t['id']}: {t['label']}" for t in catalog_for_agent("discovery") if t["id"] in set(allowed)
         )
@@ -145,6 +159,7 @@ class HeadAgent:
             f"{_PLAN_MISSION}\n\n"
             f"Goal / seed hint: {goal.strip()}\n\n"
             f"Allowed Discovery tools (you may only pick from these):\n{catalog_lines}\n"
+            f"max_search_results must be an integer between 1 and {settings.head_max_search_results}.\n"
         )
         ctx = build_brain_context("head", goal)
         if ctx:
@@ -156,7 +171,7 @@ class HeadAgent:
                 self.model,
                 [{"role": "user", "content": user_body}],
                 temperature=0.2,
-                max_tokens=512,
+                max_tokens=768,
             )
             parsed = _parse_plan_json(text)
             seed = (parsed.get("seed_query") or goal).strip() or goal.strip()
@@ -164,10 +179,14 @@ class HeadAgent:
             if not isinstance(requested, list):
                 requested = allowed
             clamped = clamp_discovery_tools(requested, allowed=allowed)
+            budget = _sanitize_budget(parsed.get("max_search_results"), settings.head_max_search_results)
             return {
                 "seed_query": seed,
+                "max_search_results": budget,
                 "tools": clamped["tools"],
                 "skill_gaps": clamped["skill_gaps"],
+                "tool_reasons": _sanitize_dict(parsed.get("tool_reasons")),
+                "insights": str(parsed.get("insights") or "")[:800],
                 "rationale": str(parsed.get("rationale") or "")[:500],
                 "raw": text[:2000],
             }
@@ -234,3 +253,22 @@ def _parse_plan_json(text: str) -> Dict[str, Any]:
     if not isinstance(data, dict):
         raise ValueError("plan is not an object")
     return data
+
+
+def _sanitize_budget(value: Any, ceiling: int) -> int:
+    """Coerce max_search_results to an int in [1, ceiling]; default to ceiling."""
+    try:
+        n = int(float(value))
+    except (TypeError, ValueError):
+        return ceiling
+    return max(1, min(n, ceiling))
+
+
+def _sanitize_dict(value: Any) -> Dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    out: Dict[str, str] = {}
+    for k, v in value.items():
+        if isinstance(v, str) and v.strip():
+            out[str(k)] = v.strip()[:300]
+    return out

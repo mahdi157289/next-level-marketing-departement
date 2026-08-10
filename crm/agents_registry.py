@@ -15,7 +15,7 @@ AGENT_ROSTER: List[Dict[str, object]] = [
         "description": "Searches the web/maps/ad library and writes leads.",
         "default_tools": [
             "web_search", "google_maps_search", "meta_ads_search",
-            "crm_write_leads", "llm_chat", "scrape",
+            "crm_write_leads", "llm_chat", "seo_audit", "scrape",
         ],
         "providers": ["openai", "serpapi", "google_maps", "meta_ads"],
     },

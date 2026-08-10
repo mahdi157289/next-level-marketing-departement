@@ -14,18 +14,34 @@ class LeadCreate(BaseModel):
     url: str
     status: str = "raw"
     source: str = "discovery"
+    google_maps_url: Optional[str] = None
+    address: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
     country: Optional[str] = None
     industry: Optional[str] = None
     business_type: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     status_notes: Optional[str] = None
+    hours: Optional[str] = None
+    description: Optional[str] = None
+    price_level: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    linkedin: Optional[str] = None
+    twitter: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class LeadUpdate(BaseModel):
     name: Optional[str] = None
     url: Optional[str] = None
     status: Optional[str] = None
+    google_maps_url: Optional[str] = None
+    address: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
     country: Optional[str] = None
     industry: Optional[str] = None
     business_type: Optional[str] = None
@@ -35,18 +51,38 @@ class LeadUpdate(BaseModel):
     lead_score: Optional[float] = None
     status_notes: Optional[str] = None
     source: Optional[str] = None
+    hours: Optional[str] = None
+    description: Optional[str] = None
+    price_level: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    linkedin: Optional[str] = None
+    twitter: Optional[str] = None
+    tags: Optional[List[str]] = None
 
 
 class LeadOut(BaseModel):
     id: UUID
     name: Optional[str] = None
     url: Optional[str] = None
+    google_maps_url: Optional[str] = None
+    address: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
     country: Optional[str] = None
     industry: Optional[str] = None
     business_type: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
     seo_score: Optional[int] = None
+    hours: Optional[str] = None
+    description: Optional[str] = None
+    price_level: Optional[str] = None
+    facebook: Optional[str] = None
+    instagram: Optional[str] = None
+    linkedin: Optional[str] = None
+    twitter: Optional[str] = None
+    tags: Optional[List[str]] = None
     lead_score: Optional[float] = None
     status: Optional[str] = None
     status_notes: Optional[str] = None
@@ -204,6 +240,21 @@ class ProviderInfo(BaseModel):
     fingerprint: Optional[str] = None
 
 
+class LlmModelAlias(BaseModel):
+    agent: str
+    model: str
+
+
+class LlmStatus(BaseModel):
+    provider: str
+    base_url: str
+    api_key_set: bool
+    models: List[LlmModelAlias]
+    reachable: bool
+    detail: str
+    checked_at: str
+
+
 class AgentMemoryIn(BaseModel):
     scope: str = "shared"
     key: str
@@ -235,7 +286,8 @@ class ChunkOut(BaseModel):
 
 class DiscoveryStartRequest(BaseModel):
     seed_query: Optional[str] = Field(None, min_length=2)
-    max_search_results: int = Field(5, ge=1)
+    # None → Head decides the per-mission search budget.
+    max_search_results: Optional[int] = Field(None, ge=1)
     mission: Optional[str] = None
 
 
@@ -251,6 +303,18 @@ class DiscoveryStartOut(BaseModel):
 class DiscoveryFinishOut(BaseModel):
     pipeline_run_id: UUID
     status: str
+
+
+class EnrichLeadsRequest(BaseModel):
+    # Either explicit lead_ids, or a limit of the most recent leads.
+    lead_ids: Optional[List[UUID]] = None
+    limit: Optional[int] = Field(None, ge=1, le=1000)
+
+
+class EnrichLeadsOut(BaseModel):
+    pipeline_run_id: UUID
+    status: str
+    target_count: int
 
 
 class BrainQueryRequest(BaseModel):

@@ -119,7 +119,14 @@ def _run_head(run_id: str, seed_query: str, mission: Optional[str]) -> None:
         plan = HeadAgent().plan_discovery(seed_query or "Improve the pipeline", recorder=recorder)
         recorder.complete_pipeline(
             "success",
-            meta={"mode": "dispatch", "seed_query": plan.get("seed_query"), "tools": plan.get("tools")},
+            meta={
+                "mode": "dispatch",
+                "seed_query": plan.get("seed_query"),
+                "max_search_results": plan.get("max_search_results"),
+                "tools": plan.get("tools"),
+                "tool_reasons": plan.get("tool_reasons"),
+                "insights": plan.get("insights"),
+            },
         )
     except Exception as exc:  # noqa: BLE001
         try:

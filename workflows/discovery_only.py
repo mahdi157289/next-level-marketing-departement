@@ -13,7 +13,7 @@ from crm.client import AgentRunRecorder, CancelledError
 def run_discovery_only(
     seed_query: str,
     *,
-    max_search_results: int = 5,
+    max_search_results: Optional[int] = None,
     recorder: Optional[AgentRunRecorder] = None,
     should_cancel: Optional[Callable[[], bool]] = None,
     trigger: str = "crm_ui",
@@ -39,10 +39,15 @@ def run_discovery_only(
             assignment = HeadAgent().plan_discovery(seed_query, recorder=recorder)
             effective_seed = (assignment.get("seed_query") or seed_query).strip() or seed_query
             tools = assignment.get("tools")
+            if max_search_results is None:
+                max_search_results = assignment.get("max_search_results")
             assign_meta = {
                 "seed_query": effective_seed,
+                "max_search_results": max_search_results,
                 "tools": tools,
                 "skill_gaps": assignment.get("skill_gaps"),
+                "tool_reasons": assignment.get("tool_reasons"),
+                "insights": assignment.get("insights"),
                 "rationale": assignment.get("rationale"),
             }
             recorder.meta = {**(recorder.meta or {}), "head_assignment": assign_meta}
@@ -62,6 +67,18 @@ def run_discovery_only(
             max_results=max_search_results,
             recorder=recorder,
         )
+
+        # Lead Completion Agent — fill missing fields on freshly ingested leads
+        # (best-effort; never fails the pipeline if enrichment breaks).
+        lead_ids = discovery.get("lead_ids") or []
+        if lead_ids and not (should_cancel and should_cancel()):
+            try:
+                from workflows.enrich_leads import enrich_leads
+
+                enrich_leads(lead_ids, recorder=recorder, should_cancel=should_cancel)
+            except Exception:
+                pass
+
         if should_cancel and should_cancel():
             recorder.complete_pipeline(
                 "cancelled",

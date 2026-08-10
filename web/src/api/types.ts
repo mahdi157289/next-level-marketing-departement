@@ -2,12 +2,24 @@ export interface Lead {
   id: string;
   name: string | null;
   url: string | null;
+  google_maps_url: string | null;
+  address: string | null;
+  rating: number | null;
+  review_count: number | null;
   country: string | null;
   industry: string | null;
   business_type: string | null;
   email: string | null;
   phone: string | null;
   seo_score: number | null;
+  hours: string | null;
+  description: string | null;
+  price_level: string | null;
+  facebook: string | null;
+  instagram: string | null;
+  linkedin: string | null;
+  twitter: string | null;
+  tags: string[] | null;
   lead_score: number | null;
   status: string | null;
   status_notes: string | null;
@@ -91,6 +103,22 @@ export interface ProviderInfo {
 }
 
 
+export interface LlmModelAlias {
+  agent: string;
+  model: string;
+}
+
+export interface LlmStatus {
+  provider: string;
+  base_url: string;
+  api_key_set: boolean;
+  models: LlmModelAlias[];
+  reachable: boolean;
+  detail: string;
+  checked_at: string;
+}
+
+
 export interface AgentSecretSet {
   kind: string;
   name: string;
@@ -167,6 +195,12 @@ export interface DiscoveryStartOut {
 export interface DiscoveryFinishOut {
   pipeline_run_id: string;
   status: string;
+}
+
+export interface EnrichLeadsOut {
+  pipeline_run_id: string;
+  status: string;
+  target_count: number;
 }
 
 export interface BrainMetric {

@@ -184,6 +184,11 @@ async function scrapeCurrentPlace(page, url, onLog) {
     address: 'Not available',
     phone: 'Not available',
     website: 'Not available',
+    price_level: '',
+    hours: '',
+    description: '',
+    socials: {},
+    tags: [],
     url: url
   };
 
@@ -274,6 +279,57 @@ async function scrapeCurrentPlace(page, url, onLog) {
       if (await altWeb.count() > 0) {
         data.website = await altWeb.first().getAttribute('href');
       }
+    }
+  } catch (e) {}
+
+  // 6b. Price level ($ indicator shown next to the category)
+  try {
+    const priceLoc = page.locator('span').filter({ hasText: /^\${1,4}$/ }).first();
+    if (await priceLoc.count() > 0) {
+      const t = cleanField(await priceLoc.innerText());
+      if (/^\${1,4}$/.test(t)) data.price_level = t;
+    }
+  } catch (e) {}
+
+  // 6c. Hours (displayed hours row — full hours may need a click)
+  try {
+    const hoursLoc = page.locator('[data-item-id="ohs"], button[aria-label*="Open"], div[aria-label*="hours"]').first();
+    if (await hoursLoc.count() > 0) {
+      const t = cleanField(await hoursLoc.innerText());
+      if (t) data.hours = t;
+    }
+  } catch (e) {}
+
+  // 6d. Description / About text
+  try {
+    const descLoc = page.locator('div[data-attrid*="description"], span[data-attrid*="description"], div[data-attrid="wiki_v2_single"]').first();
+    if (await descLoc.count() > 0) {
+      const t = cleanField(await descLoc.innerText());
+      if (t) data.description = t;
+    }
+  } catch (e) {}
+
+  // 6e. Social links (facebook / instagram / linkedin / twitter)
+  try {
+    const socialAnchors = page.locator('a[href*="facebook.com"], a[href*="instagram.com"], a[href*="linkedin.com"], a[href*="twitter.com"], a[href*="x.com/"]');
+    const n = await socialAnchors.count();
+    for (let i = 0; i < Math.min(n, 10); i++) {
+      const href = await socialAnchors.nth(i).getAttribute('href');
+      if (!href) continue;
+      if (/facebook\.com/.test(href) && !data.socials.facebook) data.socials.facebook = href;
+      else if (/instagram\.com/.test(href) && !data.socials.instagram) data.socials.instagram = href;
+      else if (/linkedin\.com/.test(href) && !data.socials.linkedin) data.socials.linkedin = href;
+      else if (/twitter\.com|(^|[./])x\.com/.test(href) && !data.socials.twitter) data.socials.twitter = href;
+    }
+  } catch (e) {}
+
+  // 6f. Tags — additional category chips beyond the primary category
+  try {
+    const tagLoc = page.locator('button[jsaction*="category"]');
+    const n = await tagLoc.count();
+    for (let i = 0; i < Math.min(n, 10); i++) {
+      const t = cleanField(await tagLoc.nth(i).innerText());
+      if (t && t !== data.category) data.tags.push(t);
     }
   } catch (e) {}
 
@@ -401,5 +457,7 @@ function findContactPageLink(html, baseUrl) {
 }
 
 module.exports = {
-  runScraper
+  runScraper,
+  scrapeCurrentPlace,
+  cleanField
 };

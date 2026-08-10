@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import urllib.robotparser
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin, urlparse
 
 from playwright.sync_api import sync_playwright
@@ -61,11 +61,57 @@ def scrape_tool(url: str, timeout_ms: int = 15_000) -> Dict[str, Any]:
             )
         )
     )
-    phones = list(set(re.findall(r"\+?[\d\s\-().]{7,15}", html)))
+    raw_phones = list(set(re.findall(r"\+?[\d\s\-().]{7,15}", html)))
+    phones = [p for p in raw_phones if _clean_phone(p) is not None][:3]
 
     return {
         "title": title,
         "url": url,
         "emails": emails[:5],
-        "phones": phones[:3],
+        "phones": phones,
+        "socials": _extract_socials(html),
+        "description": _extract_description(html),
     }
+
+
+def _clean_phone(value: str) -> Optional[str]:
+    """Return a phone candidate only if it looks like a real phone (>=7 digits, no letters)."""
+    s = value.strip()
+    if not s:
+        return None
+    digits = re.sub(r"\D", "", s)
+    if len(digits) < 7 or len(digits) > 15:
+        return None
+    if re.search(r"[a-zA-Z]", s):
+        return None
+    return s
+
+
+def _extract_socials(html: str) -> Dict[str, str]:
+    """Pull facebook/instagram/linkedin/twitter profile URLs out of page HTML."""
+    socials: Dict[str, str] = {}
+    patterns = {
+        "facebook": r"facebook\.com/[a-zA-Z0-9.\-]+",
+        "instagram": r"instagram\.com/[a-zA-Z0-9._\-]+",
+        "linkedin": r"linkedin\.com/(?:company|in)/[a-zA-Z0-9\-]+",
+        "twitter": r"twitter\.com/[a-zA-Z0-9_\-]+",
+    }
+    for platform, pat in patterns.items():
+        m = re.search(pat, html)
+        if m:
+            socials[platform] = "https://" + m.group(0).rstrip("/.,;")
+    return socials
+
+
+def _extract_description(html: str) -> str:
+    """Meta og:description / description tag text (fallback source for lead.description)."""
+    patterns = (
+        r'<meta[^>]+property=["\']og:description["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']+)',
+        r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:description["\']',
+    )
+    for pat in patterns:
+        m = re.search(pat, html)
+        if m:
+            return m.group(1).strip()[:500]
+    return ""

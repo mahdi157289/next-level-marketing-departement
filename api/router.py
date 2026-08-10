@@ -230,3 +230,8 @@ def api_put_agent_prompt(agent_name: str, body: PromptUpdate):
         "content": content,
         "resolved_prompt": prompts.load_agent_prompt(agent_name, None),
     }
+
+
+@router.get("/llm/status", response_model=schemas.LlmStatus)
+def api_llm_status():
+    return service.llm_status()

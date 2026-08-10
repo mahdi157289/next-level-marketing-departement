@@ -24,6 +24,11 @@ TOOL_CATALOG: List[Dict[str, Any]] = [
         "agents": ["discovery"],
     },
     {
+        "id": "google_maps_place",
+        "label": "Google Maps single-place re-scrape (Playwright)",
+        "agents": ["discovery"],
+    },
+    {
         "id": "crm_write_leads",
         "label": "Write leads to CRM",
         "agents": ["discovery"],
@@ -145,6 +150,10 @@ def resolve_callable(tool_id: str) -> Optional[Callable[..., Any]]:
         from tools.google_maps_tool import google_maps_search
 
         return google_maps_search
+    if tool_id == "google_maps_place":
+        from tools.google_maps_tool import google_maps_place
+
+        return google_maps_place
     if tool_id == "seo_audit":
         from tools.seo_audit_tool import seo_audit_tool
 

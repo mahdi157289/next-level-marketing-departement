@@ -45,6 +45,20 @@ def update_lead(lead_id: UUID, body: schemas.LeadUpdate):
     return row
 
 
+@router.post("/leads/enrich", response_model=schemas.EnrichLeadsOut, status_code=202)
+def enrich_leads(body: schemas.EnrichLeadsRequest):
+    """Start a Lead Completion Agent backfill in the background."""
+    from crm import runner
+
+    lead_ids = [str(i) for i in (body.lead_ids or [])]
+    try:
+        return runner.start_enrich_job(lead_ids, limit=body.limit)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
 @router.post("/pipeline-runs", response_model=schemas.PipelineRunOut, status_code=201)
 def start_pipeline_run(body: schemas.PipelineRunCreate):
     return service.start_pipeline_run(body.trigger, body.seed_query, body.meta)

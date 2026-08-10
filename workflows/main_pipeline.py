@@ -18,7 +18,7 @@ from crm.client import AgentRunRecorder
 def run_minimal_marketing_pipeline(
     seed_query: str,
     *,
-    max_search_results: int = 5,
+    max_search_results: Optional[int] = None,
     recorder: Optional[AgentRunRecorder] = None,
     trigger: str = "cli",
 ) -> Dict[str, Any]:
@@ -36,6 +36,14 @@ def run_minimal_marketing_pipeline(
         head_report = HeadAgent().run(discovery, recorder=recorder)
 
         lead_ids = discovery.get("lead_ids") or []
+        if lead_ids:
+            try:
+                from workflows.enrich_leads import enrich_leads
+
+                enrich_leads(lead_ids, recorder=recorder)
+            except Exception:
+                pass
+
         qualifier = QualifierAgent()
         qualifications = []
         for lid in lead_ids:

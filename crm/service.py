@@ -46,6 +46,33 @@ def _row_to_dict(row: Any) -> Dict[str, Any]:
     return d
 
 
+# Fields a lead-completion agent can fill using tools + existing fields.
+FILLABLE_FIELDS: tuple = (
+    "google_maps_url", "address", "rating", "review_count",
+    "country", "industry", "business_type", "email", "phone", "seo_score",
+    "hours", "description", "price_level", "facebook", "instagram",
+    "linkedin", "twitter", "tags",
+)
+
+
+def _is_empty(value: Any) -> bool:
+    """True when a field has no usable data (None/''/[]/{} or zero)."""
+    if value is None:
+        return True
+    if isinstance(value, (list, dict)) and not value:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    if value == 0:
+        return True
+    return False
+
+
+def lead_gaps(lead: Dict[str, Any]) -> List[str]:
+    """List FILLABLE_FIELDS that are currently empty on a lead."""
+    return [f for f in FILLABLE_FIELDS if _is_empty(lead.get(f))]
+
+
 # --- Leads ---
 
 
@@ -89,6 +116,10 @@ def create_lead(data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Dic
             id=uuid.uuid4(),
             name=data.get("name"),
             url=data["url"],
+            google_maps_url=data.get("google_maps_url"),
+            address=data.get("address"),
+            rating=data.get("rating"),
+            review_count=data.get("review_count"),
             status=LeadStatus(data.get("status", "raw")),
             source=data.get("source", "discovery"),
             country=data.get("country"),
@@ -97,6 +128,14 @@ def create_lead(data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Dic
             email=data.get("email"),
             phone=data.get("phone"),
             status_notes=data.get("status_notes"),
+            hours=data.get("hours"),
+            description=data.get("description"),
+            price_level=data.get("price_level"),
+            facebook=data.get("facebook"),
+            instagram=data.get("instagram"),
+            linkedin=data.get("linkedin"),
+            twitter=data.get("twitter"),
+            tags=data.get("tags"),
         )
         session.add(lead)
         session.flush()
@@ -119,22 +158,216 @@ def create_lead(data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Dic
         session.close()
 
 
+def _to_rating(value: Any) -> Optional[float]:
+    if value is None:
+        return None
+    try:
+        return round(float(str(value).strip()), 2)
+    except (TypeError, ValueError):
+        return None
+
+
+def _to_review_count(value: Any) -> Optional[int]:
+    if value is None:
+        return None
+    try:
+        return int(str(value).strip().replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+
+
 def create_lead_from_search_hit(hit: Dict[str, str], agent_run_id: Optional[str] = None) -> Dict[str, Any]:
     url = (hit.get("url") or "").strip()
     if not url or not url.startswith("http"):
         return {}
     title = (hit.get("title") or url)[:256]
     snippet = (hit.get("snippet") or "")[:500]
-    return create_lead(
+    lead = create_lead(
         {
             "name": title,
             "url": url,
             "status": "raw",
             "source": "discovery",
             "status_notes": snippet or None,
+            "google_maps_url": _clean_field(hit.get("google_maps_url")),
+            "address": _clean_field(hit.get("address")),
+            "rating": _to_rating(hit.get("rating")),
+            "review_count": _to_review_count(hit.get("review_count")),
+            "phone": _clean_field(hit.get("phone")),
+            "email": _clean_field(hit.get("email")),
+            "industry": _clean_field(hit.get("category")),
+            "country": _infer_country(hit),
+            "business_type": _clean_field(hit.get("business_type")),
+            "hours": _clean_field(hit.get("hours")),
+            "description": _clean_field(hit.get("description")),
+            "price_level": _clean_field(hit.get("price_level")),
+            "facebook": _clean_field(hit.get("facebook")),
+            "instagram": _clean_field(hit.get("instagram")),
+            "linkedin": _clean_field(hit.get("linkedin")),
+            "twitter": _clean_field(hit.get("twitter")),
+            "tags": _clean_tags(hit.get("tags")),
         },
         agent_run_id=agent_run_id,
     )
+    if lead.get("created"):
+        return lead
+    # Re-discovery of an existing lead: persist any newly found structured fields.
+    structured = {
+        "google_maps_url": _clean_field(hit.get("google_maps_url")),
+        "address": _clean_field(hit.get("address")),
+        "rating": _to_rating(hit.get("rating")),
+        "review_count": _to_review_count(hit.get("review_count")),
+        "phone": _clean_field(hit.get("phone")),
+        "email": _clean_field(hit.get("email")),
+        "industry": _clean_field(hit.get("category")),
+        "country": _infer_country(hit),
+        "business_type": _clean_field(hit.get("business_type")),
+        "hours": _clean_field(hit.get("hours")),
+        "description": _clean_field(hit.get("description")),
+        "price_level": _clean_field(hit.get("price_level")),
+        "facebook": _clean_field(hit.get("facebook")),
+        "instagram": _clean_field(hit.get("instagram")),
+        "linkedin": _clean_field(hit.get("linkedin")),
+        "twitter": _clean_field(hit.get("twitter")),
+        "tags": _clean_tags(hit.get("tags")),
+    }
+    structured = {k: v for k, v in structured.items() if v}
+    if structured:
+        enrich_lead(str(lead["id"]), structured, agent_run_id=agent_run_id)
+        lead = get_lead(str(lead["id"])) or lead
+        lead["created"] = False
+    return lead
+
+
+def _clean_field(value: Any) -> Optional[str]:
+    if not value:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() in ("n/a", "none", "unknown"):
+        return None
+    return s[:256]
+
+
+def _clean_tags(value: Any) -> Optional[List[str]]:
+    if not isinstance(value, list):
+        return None
+    out: List[str] = []
+    for item in value:
+        s = _clean_field(item)
+        if s:
+            out.append(s)
+    return out[:20] if out else None
+
+
+_COUNTRY_HINTS = ("tunisie", "tunisia", "tunis")
+
+
+def _infer_country(hit: Dict[str, Any]) -> Optional[str]:
+    """Country from hit.country, else the address tail, else the URL TLD."""
+    c = _clean_field(hit.get("country"))
+    if c:
+        return c
+    address = _clean_field(hit.get("address"))
+    if address:
+        tail = address.split(",")[-1].strip().lower()
+        if any(hint in tail for hint in _COUNTRY_HINTS):
+            return "Tunisia"
+        if "google.com/maps" in (hit.get("url") or "").lower():
+            # Maps hits come from a Tunisia-scoped place search (region="Tunisia").
+            return "Tunisia"
+    url = (hit.get("url") or "").lower()
+    if url.startswith("http"):
+        host = url.split("/")[2].split(":")[0].split("?")[0]
+        if host.endswith(".tn"):
+            return "Tunisia"
+    return None
+
+
+def enrich_lead(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Persist enriched fields on a lead and bump status raw → enriched when new data lands.
+
+    Records a LeadEvent per enrichment so the CRM shows the data flowing in.
+    """
+    session = _session()
+    try:
+        lead = session.get(Lead, uuid.UUID(lead_id))
+        if not lead:
+            return None
+        updated_fields: List[str] = []
+        for key in (
+            "email", "phone", "industry", "country", "business_type", "seo_score",
+            "address", "google_maps_url", "rating", "review_count",
+            "hours", "description", "price_level", "facebook", "instagram",
+            "linkedin", "twitter", "tags",
+        ):
+            if key not in data or data[key] is None:
+                continue
+            val = data[key]
+            if key == "rating":
+                val = _to_rating(val)
+            elif key == "review_count":
+                val = _to_review_count(val)
+            elif key == "tags":
+                val = val if isinstance(val, list) else None
+            elif key != "seo_score":
+                val = _clean_field(val)
+            if val is None:
+                continue
+            if getattr(lead, key) == val:
+                continue
+            setattr(lead, key, val)
+            updated_fields.append(key)
+        if not updated_fields:
+            return _row_to_dict(lead)
+
+        old_status = _enum_val(lead.status)
+        if old_status != "enriched" and old_status in ("raw", "categorized"):
+            lead.status = LeadStatus.enriched
+            if agent_run_id:
+                session.add(
+                    LeadEvent(
+                        id=uuid.uuid4(),
+                        lead_id=lead.id,
+                        agent_run_id=uuid.UUID(agent_run_id),
+                        event_type="status_changed",
+                        payload={"field": "status", "old": old_status, "new": "enriched"},
+                    )
+                )
+        if agent_run_id:
+            session.add(
+                LeadEvent(
+                    id=uuid.uuid4(),
+                    lead_id=lead.id,
+                    agent_run_id=uuid.UUID(agent_run_id),
+                    event_type="enriched",
+                    payload={"fields": updated_fields},
+                )
+            )
+        lead.updated_at = datetime.utcnow()
+        session.commit()
+        session.refresh(lead)
+        return _row_to_dict(lead)
+    finally:
+        session.close()
+
+
+def enrich_missing(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Fill only currently-empty fields on a lead.
+
+    Unlike ``enrich_lead`` (which overwrites differing values), this never
+    regresses existing data — it drops values for any field already populated.
+    Used by the Lead Completion Agent so re-scrapes can't clobber good data.
+    """
+    lead = get_lead(lead_id)
+    if not lead:
+        return None
+    filtered = {
+        k: v for k, v in (data or {}).items()
+        if v is not None and _is_empty(lead.get(k))
+    }
+    if not filtered:
+        return lead
+    return enrich_lead(lead_id, filtered, agent_run_id=agent_run_id)
 
 
 def update_lead(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
@@ -802,6 +1035,39 @@ def search_chunks(agent_name: str, query: str, scope: Optional[str] = None, limi
 
 def tools_catalog() -> List[Dict[str, Any]]:
     return list(TOOL_CATALOG)
+
+
+def llm_status() -> Dict[str, Any]:
+    """LLM runtime info for the SPA status pill/drawer — never returns the API key."""
+    from config.settings import get_settings
+    from agents.lm_client import ensure_llm_reachable
+
+    s = get_settings()
+    base = s.openai_base_url().lower()
+    if s.openai_api_base:
+        if "openrouter" in base:
+            provider = "OpenRouter"
+        elif ":4000" in base or "litellm" in base:
+            provider = "LiteLLM"
+        else:
+            provider = "OpenAI-compatible"
+    else:
+        provider = "LM Studio (local)"
+
+    reachable, detail = ensure_llm_reachable()
+
+    return {
+        "provider": provider,
+        "base_url": s.openai_base_url(),
+        "api_key_set": bool(s.openai_api_key) and s.openai_api_key != "lm-studio",
+        "models": [
+            {"agent": "discovery", "model": s.agent_model_discovery},
+            {"agent": "head", "model": s.agent_model_head},
+        ],
+        "reachable": reachable,
+        "detail": detail,
+        "checked_at": datetime.now().isoformat(),
+    }
 
 
 def health_check() -> Dict[str, str]:

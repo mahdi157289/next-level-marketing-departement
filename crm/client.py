@@ -94,3 +94,7 @@ class AgentRunRecorder:
 
     def create_lead_from_hit(self, hit: Dict[str, str], agent_run_id: str) -> Dict[str, Any]:
         return service.create_lead_from_search_hit(hit, agent_run_id=agent_run_id)
+
+    def enrich_lead(self, lead_id: str, data: Dict[str, Any], agent_run_id: str) -> Optional[Dict[str, Any]]:
+        """Persist enriched fields (email/phone/industry/country/seo_score) back to a lead."""
+        return service.enrich_lead(lead_id, data, agent_run_id=agent_run_id)

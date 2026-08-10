@@ -180,8 +180,46 @@ def test_parse_head_plan_json():
     assert "web_search" in data["tools"]
 
 
-def test_head_fallback_plan_without_llm():
+def test_head_plan_parses_new_contract_fields():
+    from agents.head_agent import _parse_plan_json
+
+    text = (
+        '{"seed_query":"e-commerce Tunisia","max_search_results":8,'
+        '"tools":["meta_ads_search","google_maps_search"],'
+        '"tool_reasons":{"google_maps_search":"local shops with phones/addresses"},'
+        '"insights":"Focus on logistics players with weak sites","rationale":"good"}'
+    )
+    data = _parse_plan_json(text)
+    assert data["max_search_results"] == 8
+    assert data["tool_reasons"]["google_maps_search"]
+    assert "logistics" in data["insights"]
+
+
+def test_head_plan_budget_sanitized(monkeypatch):
+    from agents import head_agent as head_mod
+    from config.settings import Settings
+
+    monkeypatch.setattr(
+        head_mod,
+        "lm_client",
+        type("LM", (), {"chat_completion": lambda *a, **k: '{"seed_query":"s","max_search_results":99,"tools":["web_search","llm_chat"]}'})(),
+    )
+    agent = head_mod.HeadAgent(enabled_tools=["llm_chat"])
+    plan = agent._plan_core("s", ["web_search", "llm_chat", "crm_write_leads"])
+    assert plan["max_search_results"] == Settings().head_max_search_results
+
+    monkeypatch.setattr(
+        head_mod,
+        "lm_client",
+        type("LM", (), {"chat_completion": lambda *a, **k: '{"seed_query":"s","max_search_results":-3,"tools":["web_search","llm_chat"]}'})(),
+    )
+    plan = agent._plan_core("s", ["web_search", "llm_chat", "crm_write_leads"])
+    assert plan["max_search_results"] == 1
+
+
+def test_head_fallback_plan_includes_budget():
     from agents.head_agent import HeadAgent
+    from config.settings import get_settings
 
     agent = HeadAgent(enabled_tools=[])  # llm_chat off → fallback
     plan = agent.plan_discovery(
@@ -191,3 +229,5 @@ def test_head_fallback_plan_without_llm():
     assert plan["seed_query"]
     assert "web_search" in plan["tools"]
     assert "llm_chat" in plan["tools"]
+    assert plan["max_search_results"] == get_settings().head_max_search_results
+    assert plan["tool_reasons"]

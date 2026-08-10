@@ -21,10 +21,10 @@ export function updateAgent(name: string, patch: Record<string, unknown>): Promi
   return apiSend<AgentProfile>(`/api/agents/${name}`, "PATCH", patch);
 }
 
-export function startScout(seedQuery: string, maxSearchResults: number): Promise<DiscoveryStartOut> {
+export function startScout(seedQuery: string, maxSearchResults: number | null): Promise<DiscoveryStartOut> {
   return apiSend<DiscoveryStartOut>("/api/agents/discovery/start", "POST", {
     seed_query: seedQuery,
-    max_search_results: maxSearchResults,
+    ...(maxSearchResults != null ? { max_search_results: maxSearchResults } : {}),
   });
 }
 

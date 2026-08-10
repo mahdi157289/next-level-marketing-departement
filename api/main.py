@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Depends, FastAPI
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
@@ -57,7 +59,8 @@ def health_db(db: Session = Depends(get_db)) -> dict[str, str]:
 
 class MinimalPipelineRequest(BaseModel):
     seed_query: str = Field(..., min_length=2, description="Discovery seed passed to DuckDuckGo + agents")
-    max_search_results: int = Field(5, ge=1)
+    # None → Head decides the per-mission search budget.
+    max_search_results: Optional[int] = Field(None, ge=1)
 
 
 @app.post("/run/pipeline/minimal")

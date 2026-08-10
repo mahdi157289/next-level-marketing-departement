@@ -6,11 +6,16 @@ import type { AgentRun } from "../api/types";
 import { AgentChat } from "../components/AgentChat";
 import { AgentPromptEditor } from "../components/AgentPromptEditor";
 import { StatusBadge } from "../components/StatusBadge";
+import { LlmStatusPill } from "../components/LlmStatusPill";
+import { LlmStatusPanel } from "../components/LlmStatusPanel";
 
 interface PlanJson {
   seed_query?: string | null;
+  max_search_results?: number | null;
   tools?: unknown;
   skill_gaps?: unknown;
+  tool_reasons?: Record<string, string> | null;
+  insights?: string | null;
   rationale?: string | null;
 }
 
@@ -25,12 +30,22 @@ function listLabel(v: unknown): string {
   return "—";
 }
 
+function reasonsLabel(reasons: Record<string, string> | null | undefined): string {
+  if (!reasons || !Object.keys(reasons).length) return "—";
+  return Object.entries(reasons)
+    .map(([tool, why]) => `${tool}: ${why}`)
+    .join("\n");
+}
+
+type OpenPanel = "plan" | "prompt" | "runs" | "llm" | null;
+
 export default function HeadHQ() {
   const qc = useQueryClient();
   const [goal, setGoal] = useState("");
   const [dispatchRunId, setDispatchRunId] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [flashErr, setFlashErr] = useState(false);
+  const [open, setOpen] = useState<OpenPanel>(null);
 
   const headRuns = useQuery({
     queryKey: ["head-runs"],
@@ -76,130 +91,197 @@ export default function HeadHQ() {
     if (goal.trim()) dispatch.mutate(goal.trim());
   };
 
-  return (
-    <div className="head-hq">
-      <h1>Head HQ</h1>
+  const toggle = (p: OpenPanel) => setOpen(open === p ? null : p);
 
+  return (
+    <div className="scout-hq head-hq">
       {flash ? <div className={`flash ${flashErr ? "err" : ""}`}>{flash}</div> : null}
 
-      <div className="panel">
-        <h3>Chat with Head</h3>
-        <AgentChat agentName="head" label="Head" />
+      <div className="scout-toolbar">
+        <button
+          type="button"
+          className={`btn ${open === "plan" ? "active" : ""}`}
+          onClick={() => toggle("plan")}
+        >
+          Plan console
+        </button>
+        <button
+          type="button"
+          className={`btn ${open === "prompt" ? "active" : ""}`}
+          onClick={() => toggle("prompt")}
+        >
+          Edit prompt
+        </button>
+        <button
+          type="button"
+          className={`btn ${open === "runs" ? "active" : ""}`}
+          onClick={() => toggle("runs")}
+        >
+          Recent runs
+        </button>
+        <LlmStatusPill active={open === "llm"} onClick={() => toggle("llm")} />
       </div>
 
-      <AgentPromptEditor agentName="head" />
+      <AgentChat agentName="head" label="Head" />
 
-      <div className="panel">
-        <h3>Plan console</h3>
-        <form onSubmit={onSubmit}>
-          <div className="form-row">
-            <input
-              type="text"
-              placeholder="Goal (e.g. find web agencies in Tunisia)"
-              value={goal}
-              onChange={(e) => setGoal(e.target.value)}
-              minLength={2}
-            />
-          </div>
-          <button className="btn" type="submit" disabled={dispatch.isPending}>
-            {dispatch.isPending ? "Dispatching…" : "Make plan"}
+      {open === "llm" ? <LlmStatusPanel onClose={() => setOpen(null)} /> : null}
+
+      {open === "plan" ? (
+        <aside className="scout-drawer">
+          <button
+            type="button"
+            className="scout-drawer-close"
+            aria-label="Close plan console"
+            onClick={() => setOpen(null)}
+          >
+            ✕
           </button>
-        </form>
+          <h3>Plan console</h3>
+          <form onSubmit={onSubmit}>
+            <div className="form-row">
+              <input
+                type="text"
+                placeholder="Goal (e.g. find web agencies in Tunisia)"
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                minLength={2}
+              />
+            </div>
+            <button className="btn" type="submit" disabled={dispatch.isPending}>
+              {dispatch.isPending ? "Dispatching…" : "Make plan"}
+            </button>
+          </form>
 
-        {dispatchRunId ? (
-          <div className="plan-card">
-            {pipelineRun.isPending && dispatchRunId ? (
-              <p className="muted">Dispatching head agent…</p>
-            ) : null}
-            {pipelineRun.data?.status === "failed" ? (
-              <p className="flash err">Dispatch failed.</p>
-            ) : null}
-            {plan ? (
-              <div>
-                <p>
-                  <strong>Seed query:</strong> {plan.seed_query ?? "—"}
+          {dispatchRunId ? (
+            <div className="plan-card">
+              {pipelineRun.isPending && dispatchRunId ? (
+                <p className="muted">Dispatching head agent…</p>
+              ) : null}
+              {pipelineRun.data?.status === "failed" ? (
+                <p className="flash err">Dispatch failed.</p>
+              ) : null}
+              {plan ? (
+                <div>
+                  <p>
+                    <strong>Seed query:</strong> {plan.seed_query ?? "—"}
+                  </p>
+                  <p>
+                    <strong>Search budget:</strong> {plan.max_search_results != null ? plan.max_search_results : "—"}
+                  </p>
+                  <p>
+                    <strong>Tools:</strong> {listLabel(plan.tools)}
+                  </p>
+                  <p>
+                    <strong>Tool reasons:</strong>
+                  </p>
+                  <pre className="plan-pre">{reasonsLabel(plan.tool_reasons)}</pre>
+                  <p>
+                    <strong>Skill gaps:</strong> {listLabel(plan.skill_gaps)}
+                  </p>
+                  {plan.insights ? (
+                    <div>
+                      <p><strong>Insights</strong></p>
+                      <p className="muted">{plan.insights}</p>
+                    </div>
+                  ) : null}
+                  <p>
+                    <strong>Rationale:</strong> {plan.rationale ?? "—"}
+                  </p>
+                </div>
+              ) : (
+                <p className="muted">
+                  Plan will appear here once the head agent finishes ({pipelineRun.data?.status ?? "running"}).
                 </p>
-                <p>
-                  <strong>Tools:</strong> {listLabel(plan.tools)}
-                </p>
-                <p>
-                  <strong>Skill gaps:</strong> {listLabel(plan.skill_gaps)}
-                </p>
-                <p>
-                  <strong>Rationale:</strong> {plan.rationale ?? "—"}
-                </p>
-              </div>
-            ) : (
-              <p className="muted">
-                Plan will appear here once the head agent finishes ({pipelineRun.data?.status ?? "running"}).
-              </p>
-            )}
-          </div>
-        ) : (
-          <p className="muted">Dispatch a goal to see its plan here.</p>
-        )}
-      </div>
+              )}
+            </div>
+          ) : (
+            <p className="muted">Dispatch a goal to see its plan here.</p>
+          )}
+        </aside>
+      ) : null}
 
-      <div className="panel">
-        <h3>Recent head plans</h3>
-        {!headRuns.data?.length ? (
-          <p className="muted">No head runs yet.</p>
-        ) : (
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Seed</th>
-                <th>Status</th>
-                <th>Tools</th>
-                <th>Rationale</th>
-              </tr>
-            </thead>
-            <tbody>
-              {headRuns.data.map((r) => {
-                const p = planOf(r);
-                return (
-                  <tr key={r.id}>
-                    <td>{r.input_summary ?? p?.seed_query ?? "—"}</td>
-                    <td><StatusBadge status={r.status} /></td>
-                    <td>{listLabel(p?.tools)}</td>
-                    <td className="muted">{p?.rationale ?? "—"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      {open === "prompt" ? (
+        <aside className="scout-drawer">
+          <button
+            type="button"
+            className="scout-drawer-close"
+            aria-label="Close prompt editor"
+            onClick={() => setOpen(null)}
+          >
+            ✕
+          </button>
+          <AgentPromptEditor agentName="head" />
+        </aside>
+      ) : null}
 
-      <div className="panel">
-        <h3>Recent runs</h3>
-        {!pipelineRuns.data?.length ? (
-          <p className="muted">No pipeline runs yet.</p>
-        ) : (
-          <table className="data">
-            <thead>
-              <tr>
-                <th>Trigger</th>
-                <th>Seed</th>
-                <th>Status</th>
-                <th>Runs</th>
-                <th>Started</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pipelineRuns.data.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.trigger ?? "—"}</td>
-                  <td>{r.seed_query ?? "—"}</td>
-                  <td><StatusBadge status={r.status} /></td>
-                  <td>{r.agent_run_count ?? 0}</td>
-                  <td className="muted">{r.started_at ? new Date(r.started_at).toLocaleString() : "—"}</td>
+      {open === "runs" ? (
+        <aside className="scout-drawer scout-drawer-wide">
+          <button
+            type="button"
+            className="scout-drawer-close"
+            aria-label="Close recent runs"
+            onClick={() => setOpen(null)}
+          >
+            ✕
+          </button>
+          <h3>Recent head plans</h3>
+          {!headRuns.data?.length ? (
+            <p className="muted">No head runs yet.</p>
+          ) : (
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Seed</th>
+                  <th>Status</th>
+                  <th>Tools</th>
+                  <th>Rationale</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {headRuns.data.map((r) => {
+                  const p = planOf(r);
+                  return (
+                    <tr key={r.id}>
+                      <td>{r.input_summary ?? p?.seed_query ?? "—"}</td>
+                      <td><StatusBadge status={r.status} /></td>
+                      <td>{listLabel(p?.tools)}</td>
+                      <td className="muted">{p?.rationale ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          <h3>Recent runs</h3>
+          {!pipelineRuns.data?.length ? (
+            <p className="muted">No pipeline runs yet.</p>
+          ) : (
+            <table className="data">
+              <thead>
+                <tr>
+                  <th>Trigger</th>
+                  <th>Seed</th>
+                  <th>Status</th>
+                  <th>Runs</th>
+                  <th>Started</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pipelineRuns.data.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.trigger ?? "—"}</td>
+                    <td>{r.seed_query ?? "—"}</td>
+                    <td><StatusBadge status={r.status} /></td>
+                    <td>{r.agent_run_count ?? 0}</td>
+                    <td className="muted">{r.started_at ? new Date(r.started_at).toLocaleString() : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </aside>
+      ) : null}
     </div>
   );
 }

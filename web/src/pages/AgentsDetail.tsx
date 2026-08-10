@@ -22,7 +22,7 @@ export default function AgentsDetail() {
   const [flash, setFlash] = useState<string | null>(null);
   const [flashErr, setFlashErr] = useState(false);
   const [seed, setSeed] = useState("");
-  const [maxResults, setMaxResults] = useState(5);
+  const [maxResults, setMaxResults] = useState<string>("");
 
   const { data: agent } = useQuery({
     queryKey: ["agent", name],
@@ -53,7 +53,7 @@ export default function AgentsDetail() {
   });
 
   const start = useMutation({
-    mutationFn: () => startScout(seed, maxResults),
+    mutationFn: () => startScout(seed, maxResults === "" ? null : Number(maxResults)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["scout-status"] });
       setFlash("Scout started.");
@@ -110,13 +110,14 @@ export default function AgentsDetail() {
                 />
               </div>
               <div className="form-row" style={{ maxWidth: 200 }}>
-                <label htmlFor="max_search_results">Max search results</label>
+                <label htmlFor="max_search_results">Max search results (blank = Head decides)</label>
                 <input
                   id="max_search_results"
                   type="number"
                   value={maxResults}
                   min={1}
-                  onChange={(e) => setMaxResults(Number(e.target.value))}
+                  placeholder="auto"
+                  onChange={(e) => setMaxResults(e.target.value)}
                 />
               </div>
               <button className="btn" type="submit" disabled={start.isPending}>Start scout</button>

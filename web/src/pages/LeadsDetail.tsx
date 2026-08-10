@@ -31,10 +31,20 @@ export default function LeadsDetail() {
   const rows: Array<[string, string]> = [
     ["Source", lead.source ?? "—"],
     ["Country", lead.country ?? "—"],
+    ["Address", lead.address ?? "—"],
+    ["Rating", lead.rating != null ? `${lead.rating}${lead.review_count ? ` (${lead.review_count} reviews)` : ""}` : "—"],
+    ["Hours", lead.hours ?? "—"],
+    ["Price level", lead.price_level ?? "—"],
     ["Industry", lead.industry ?? "—"],
     ["Business type", lead.business_type ?? "—"],
     ["Email", lead.email ?? "—"],
     ["Phone", lead.phone ?? "—"],
+    ["Facebook", lead.facebook ?? "—"],
+    ["Instagram", lead.instagram ?? "—"],
+    ["LinkedIn", lead.linkedin ?? "—"],
+    ["Twitter / X", lead.twitter ?? "—"],
+    ["Tags", (lead.tags?.length ? lead.tags.join(", ") : "—")],
+    ["Description", lead.description ?? "—"],
     ["SEO score", lead.seo_score != null ? String(lead.seo_score) : "—"],
     ["Lead score", lead.lead_score != null ? String(lead.lead_score) : "—"],
   ];
@@ -44,6 +54,7 @@ export default function LeadsDetail() {
       {flash ? <div className="flash">{flash}</div> : null}
       <h2>{lead.name ?? "—"} <StatusBadge status={lead.status} /></h2>
       {lead.url ? <p className="muted"><a href={lead.url} target="_blank" rel="noopener noreferrer">{lead.url}</a></p> : null}
+      {lead.google_maps_url ? <p className="muted"><a href={lead.google_maps_url} target="_blank" rel="noopener noreferrer">View on Google Maps</a></p> : null}
 
       <div className="panel">
         <table className="data">

@@ -139,9 +139,13 @@ class DiscoveryAgent:
     def run(
         self,
         seed_query: str,
-        max_results: int = 5,
+        max_results: Optional[int] = None,
         recorder: Optional[AgentRunRecorder] = None,
     ) -> Dict[str, Any]:
+        if max_results is None:
+            from config.settings import get_settings as _get_settings
+
+            max_results = _get_settings().head_max_search_results
         if recorder is None:
             return self._run_core(seed_query, max_results)
 
@@ -200,38 +204,118 @@ class DiscoveryAgent:
             self._check_cancel()
 
             lead_ids: List[str] = []
+            lead_by_url: Dict[str, str] = {}
             if tool_enabled(self.enabled_tools, "crm_write_leads"):
                 for hit in raw:
                     self._check_cancel()
                     lead = recorder.create_lead_from_hit(hit, agent_run_id=run.id)
-                    if lead and lead.get("id") and lead.get("created"):
-                        lead_ids.append(str(lead["id"]))
-                        run.increment_records()
+                    if lead and lead.get("id"):
+                        lead_by_url[(hit.get("url") or "").strip().rstrip("/")] = str(lead["id"])
+                        if lead.get("created"):
+                            lead_ids.append(str(lead["id"]))
+                            run.increment_records()
 
-            # Optional enrichments (best-effort; skip on failure)
+            # Optional enrichments (best-effort; skip on failure) — results are
+            # persisted back onto the leads so the CRM data grows. Every newly
+            # written lead with a real website gets enriched (not just the first hit).
+            from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
             enrichments: List[Dict[str, Any]] = []
-            if tool_enabled(self.enabled_tools, "seo_audit") and raw:
+            targets: List[Dict[str, str]] = []
+            for hit in raw:
+                url = (hit.get("url") or "").strip().rstrip("/")
+                lid = lead_by_url.get(url)
+                if not lid:
+                    continue
+                site = self._website_url(url)
+                if not site:
+                    continue
+                targets.append({"lead_id": lid, "site": site, "title": (hit.get("title") or "")[:160]})
+
+            if tool_enabled(self.enabled_tools, "seo_audit") and targets:
                 seo_fn = resolve_callable("seo_audit")
                 if seo_fn:
-                    try:
-                        run.record_api("seo_audit", "audit")
-                        enrichments.append({"seo": seo_fn(raw[0]["url"])})
-                    except Exception as e:
-                        enrichments.append({"seo_error": str(e)})
-            if tool_enabled(self.enabled_tools, "scrape") and raw:
+                    run.record_api("seo_audit", "audit")
+
+                    def _seo(t: Dict[str, str]) -> Optional[Dict[str, Any]]:
+                        try:
+                            self._check_cancel()
+                            out = seo_fn(t["site"])
+                            score = out.get("seo_score") if isinstance(out, dict) else None
+                            if score is None:
+                                return None
+                            return {"lead_id": t["lead_id"], "seo_score": int(score)}
+                        except BaseException:
+                            return None
+
+                    with ThreadPoolExecutor(max_workers=4) as pool:
+                        for res in pool.map(_seo, targets):
+                            if res:
+                                recorder.enrich_lead(
+                                    res["lead_id"], {"seo_score": res["seo_score"]}, agent_run_id=run.id
+                                )
+                                enrichments.append({"seo": res})
+
+            if tool_enabled(self.enabled_tools, "scrape") and targets:
                 scrape_fn = resolve_callable("scrape")
                 if scrape_fn:
-                    try:
-                        run.record_api("scrape", "page")
-                        from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+                    run.record_api("scrape", "page")
 
+                    def _scrape(t: Dict[str, str]) -> Optional[Dict[str, Any]]:
                         with ThreadPoolExecutor(max_workers=1) as pool:
-                            fut = pool.submit(scrape_fn, raw[0]["url"])
-                            enrichments.append({"scrape": fut.result(timeout=25)})
-                    except FuturesTimeout:
-                        enrichments.append({"scrape_error": "timeout after 25s"})
-                    except Exception as e:
-                        enrichments.append({"scrape_error": str(e)})
+                            try:
+                                self._check_cancel()
+                                out = pool.submit(scrape_fn, t["site"]).result(timeout=20)
+                            except FuturesTimeout:
+                                return {"lead_id": t["lead_id"], "error": "timeout"}
+                            except BaseException:
+                                return None
+                        if not isinstance(out, dict):
+                            return None
+                        fields: Dict[str, Any] = {}
+                        emails = out.get("emails") or []
+                        phones = out.get("phones") or []
+                        if emails:
+                            fields["email"] = emails[0]
+                        if phones:
+                            fields["phone"] = phones[0]
+                        if not fields:
+                            return None
+                        fields["lead_id"] = t["lead_id"]
+                        return fields
+
+                    with ThreadPoolExecutor(max_workers=2) as pool:
+                        for res in pool.map(_scrape, targets):
+                            if not res:
+                                continue
+                            if "error" in res:
+                                enrichments.append({"scrape_error": res["error"]})
+                                continue
+                            lid = res.pop("lead_id")
+                            recorder.enrich_lead(lid, res, agent_run_id=run.id)
+                            enrichments.append({"scrape": {"lead_id": lid, **res}})
+
+            # Business-type classification — one tiny LLM call per lead (best-effort).
+            if tool_enabled(self.enabled_tools, "llm_chat") and targets:
+                def _classify(t: Dict[str, str]) -> Optional[Dict[str, Any]]:
+                    with ThreadPoolExecutor(max_workers=1) as pool:
+                        try:
+                            label = pool.submit(
+                                self._classify_business_type, t["title"], t["site"]
+                            ).result(timeout=20)
+                        except BaseException:
+                            return None
+                    if not label:
+                        return None
+                    return {"lead_id": t["lead_id"], "business_type": label}
+
+                with ThreadPoolExecutor(max_workers=2) as pool:
+                    for res in pool.map(_classify, targets):
+                        if res:
+                            recorder.enrich_lead(
+                                res["lead_id"], {"business_type": res["business_type"]}, agent_run_id=run.id
+                            )
+                            enrichments.append({"business_type": res})
 
             self._check_cancel()
             if not tool_enabled(self.enabled_tools, "llm_chat"):
@@ -257,6 +341,40 @@ class DiscoveryAgent:
                 "report_markdown": report,
                 "lead_ids": lead_ids,
             }
+
+    @staticmethod
+    def _website_url(url: str) -> Optional[str]:
+        """Return a real website URL (skip Google Maps internal links)."""
+        u = (url or "").strip().rstrip("/")
+        if not u.startswith("http"):
+            return None
+        host = _host(u)
+        if not host:
+            return None
+        if "google.com/maps" in u or "maps.google.com" in u:
+            return None
+        return u
+
+    def _classify_business_type(self, title: str, url: str) -> Optional[str]:
+        """One tiny LLM call: label the lead's business type. Best-effort, None on failure."""
+        prompt = (
+            "Classify this company's business type with a short label (2-5 words, lowercase).\n"
+            "Categories: retail, wholesale, services, agency, software, ecommerce, restaurant, "
+            "real estate, education, logistics, manufacturing, healthcare, government, ngo, "
+            "hospitality, finance, construction, media, other.\n"
+            f"Company: {title}\nWebsite: {url}\nLabel:"
+        )
+        try:
+            text = lm_client.chat_completion(
+                self.model,
+                [{"role": "user", "content": prompt}],
+                temperature=0.0,
+                max_tokens=16,
+            )
+            label = (text or "").strip().splitlines()[0].strip()[:64]
+            return label or None
+        except BaseException:
+            return None
 
     def _run_core(self, seed_query: str, max_results: int) -> Dict[str, Any]:
         self._check_cancel()

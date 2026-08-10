@@ -188,7 +188,7 @@ def ui_agent_detail(agent_name: str, request: Request):
 def ui_discovery_start(
     request: Request,
     seed_query: str = Form(...),
-    max_search_results: int = Form(5),
+    max_search_results: Optional[int] = Form(None),
 ):
     from crm import runner
     from tools.registry import validate_tool_ids
