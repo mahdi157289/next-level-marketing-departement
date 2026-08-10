@@ -1,4 +1,45 @@
-from tools.hunter_tool import _build_queries, _domain, _huntable_columns
+from unittest.mock import patch
+
+from tools.hunter_tool import _build_queries, _domain, _huntable_columns, _mine_field, hunter
+
+HITS = [
+    {"title": "Acme - Contact", "url": "https://acme.tn/contact",
+     "snippet": "Email hello@acme.tn or call +216 71 123 456. Facebook: facebook.com/acme.tn Instagram: instagram.com/acme"},
+    {"title": "Acme", "url": "https://acme.tn", "snippet": "Acme is a web agency in Tunis"},
+]
+
+
+def test_mine_email_and_phone():
+    assert _mine_field("email", HITS) == "hello@acme.tn"
+    assert "+216" in _mine_field("phone", HITS)
+
+
+def test_mine_socials_from_snippets():
+    socials = _mine_field("facebook", HITS)
+    assert socials == "https://facebook.com/acme.tn"
+
+
+def test_mine_unknown_field_uses_best_snippet():
+    val = _mine_field("vat_number", HITS)
+    assert isinstance(val, str) and len(val) > 0
+
+
+def test_hunter_returns_full_payload_and_fills_gaps():
+    with patch("tools.hunter_tool._run_searches", return_value=HITS), \
+         patch("tools.hunter_tool._synthesize_summary", return_value="Acme is an agency."):
+        out = hunter(name="Acme", url="https://acme.tn", country="Tunisia", gaps=["email", "phone"])
+    assert out["status"] == "ok"
+    assert out["summary"] == "Acme is an agency."
+    assert out["fields_found"]["email"] == "hello@acme.tn"
+    assert out["queries"]
+    assert out["sources"]
+
+
+def test_hunter_never_raises_on_search_failure():
+    with patch("tools.hunter_tool._run_searches", return_value=[]), \
+         patch("tools.hunter_tool._synthesize_summary", return_value=""):
+        out = hunter(name="Acme")
+    assert out["status"] == "no_results"
 
 
 def test_huntable_columns_exclude_denylist():

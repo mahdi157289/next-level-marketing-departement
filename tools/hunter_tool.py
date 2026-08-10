@@ -88,3 +88,179 @@ def _build_queries(
         if q not in queries:
             queries.append(q)
     return queries[:MAX_QUERIES]
+
+
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+
+
+def _hit_blob(hits):
+    return " ".join(
+        f"{h.get('title', '')} {h.get('snippet', '')} {h.get('url', '')}"
+        for h in hits
+    )
+
+
+def _mine_field(field: str, hits: List[Dict[str, Any]]) -> Any:
+    if field == "email":
+        m = _EMAIL_RE.search(_hit_blob(hits))
+        return m.group(0) if m else None
+    if field == "phone":
+        for h in hits:
+            blob = f"{h.get('title', '')} {h.get('snippet', '')}"
+            for cand in re.findall(r"\+?[\d\s\-().]{7,15}", blob):
+                from tools.scrape_tool import _clean_phone
+
+                cleaned = _clean_phone(cand)
+                if cleaned:
+                    return cleaned
+        return None
+    if field in ("facebook", "instagram", "linkedin", "twitter"):
+        from tools.scrape_tool import _extract_socials
+
+        return _extract_socials(_hit_blob(hits)).get(field)
+    if field in ("hours",):
+        for h in hits:
+            blob = f"{h.get('title', '')} {h.get('snippet', '')}"
+            for cand in re.findall(
+                r"\b(?:mon|tue|wed|thu|fri|sat|sun|lu|ma|me|je|ve|sa|di)"
+                r"[a-z]*\.?\s*[-–]\s*[a-z]*\.?|\b24\s*h\b|\b\d{1,2}[:h]\d{0,2}\s*[-–]\s*\d{1,2}[:h]\d{0,2}\b",
+                blob,
+                re.IGNORECASE,
+            ):
+                return cand
+        return None
+    if field == "description":
+        return (hits[0].get("snippet") or "")[:500] if hits else None
+    if field in ("industry", "business_type"):
+        for h in hits[:3]:
+            snip = (h.get("snippet") or "").strip()
+            if snip:
+                return snip[:128]
+        return None
+    # Generic: best snippet mentioning the humanized column name.
+    kw = field.replace("_", " ")
+    best = None
+    for h in hits:
+        snip = (h.get("snippet") or "").strip()
+        if snip and (kw in snip.lower() or kw.split()[-1] in snip.lower()):
+            return snip[:256]
+        best = best or snip[:256]
+    return best
+
+
+def _synthesize_summary(name: str, industry: str, country: str, hits: List[Dict[str, Any]]) -> str:
+    from agents.lm_client import chat_completion
+    from config.settings import get_settings
+
+    snippets = "\n".join(
+        f"- {h.get('title', '')}: {h.get('snippet', '')}" for h in hits[:12]
+    )
+    prompt = (
+        "Write a short markdown intelligence profile of a company from web search results.\n"
+        "Sections: ## Overview, ## Services, ## Online presence, ## What we found.\n"
+        f"Company: {name}\nIndustry: {industry or 'unknown'}\nCountry: {country or 'unknown'}\n"
+        f"Search results:\n{snippets}\nProfile:"
+    )
+    try:
+        text = chat_completion(
+            get_settings().agent_model_discovery,
+            [{"role": "user", "content": prompt}],
+            temperature=0.2,
+            max_tokens=512,
+        )
+        text = (text or "").strip()
+        if text:
+            return text
+    except BaseException:
+        pass
+    # Deterministic fallback.
+    lines = [f"## Overview\n{name} ({country or 'unknown'})."]
+    top = (hits[0].get("snippet") or "").strip() if hits else ""
+    if top:
+        lines.append(f"**Key finding:** {top[:400]}")
+    lines.append(f"## Sources\n" + "\n".join(f"- {h.get('title', '')}: {h.get('url', '')}" for h in hits[:5]))
+    return "\n".join(lines)
+
+
+def _run_searches(queries: List[str], max_per_query: int = 5) -> List[Dict[str, Any]]:
+    from tools.registry import resolve_callable
+    from tools.web_search_tool import _relevance_score, web_search_tool
+
+    fn = resolve_callable("web_search") or web_search_tool
+    seen: set = set()
+    collected: List[Dict[str, Any]] = []
+    for q in queries:
+        try:
+            for h in fn(q, max_results=max_per_query) or []:
+                url = (h.get("url") or "").rstrip("/")
+                if url and url not in seen:
+                    seen.add(url)
+                    collected.append(h)
+        except BaseException:
+            continue
+    return sorted(collected, key=lambda h: _relevance_score(h, queries[0] if queries else ""), reverse=True)[:15]
+
+
+def hunter(
+    name: str = "",
+    url: str = "",
+    industry: str = "",
+    country: str = "",
+    gaps: Optional[List[str]] = None,
+    **fields: Any,
+) -> Dict[str, Any]:
+    """Investigate a lead: detect empty columns, web-search them, mine values, summarize."""
+    pseudo = {"name": name, "url": url, "industry": industry, "country": country, **fields}
+    if gaps is None:
+        gaps = [c for c in _huntable_columns() if c not in HUNT_DENYLIST and not _is_empty(pseudo.get(c))]
+    queries = _build_queries(name, url=url, industry=industry, country=country, gaps=gaps)
+    if not queries:
+        return {"summary": "", "fields_found": {}, "sources": [], "queries": [], "status": "no_results",
+                "investigated_at": _now()}
+    hits = _run_searches(queries)
+    if not hits:
+        return {"summary": "", "fields_found": {}, "sources": [], "queries": queries, "status": "no_results",
+                "investigated_at": _now()}
+    fields_found = {}
+    for field in gaps:
+        try:
+            val = _mine_field(field, hits)
+        except BaseException:
+            val = None
+        if val not in (None, "", [], {}):
+            fields_found[field] = val
+    summary = _synthesize_summary(name, industry, country, hits)
+    status = "llm_fallback" if not summary or summary.startswith("## Overview\n" + name) else "ok"
+    if not summary:
+        summary = f"## Overview\n{name}"
+        status = "llm_fallback"
+    sources = [
+        {"title": h.get("title", ""), "url": h.get("url", ""), "snippet": (h.get("snippet") or "")[:300], "query": queries[0]}
+        for h in hits[:10]
+    ]
+    return {
+        "summary": summary,
+        "fields_found": fields_found,
+        "sources": sources,
+        "queries": queries,
+        "status": status,
+        "investigated_at": _now(),
+    }
+
+
+def _is_empty(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, (list, dict)) and not value:
+        return True
+    if isinstance(value, str) and not value.strip():
+        return True
+    if value == 0:
+        return True
+    return False
+
+
+def _now() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat()
