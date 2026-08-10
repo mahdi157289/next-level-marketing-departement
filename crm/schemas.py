@@ -83,6 +83,7 @@ class LeadOut(BaseModel):
     linkedin: Optional[str] = None
     twitter: Optional[str] = None
     tags: Optional[List[str]] = None
+    research: Optional[dict] = None
     lead_score: Optional[float] = None
     status: Optional[str] = None
     status_notes: Optional[str] = None

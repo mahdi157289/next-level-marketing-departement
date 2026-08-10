@@ -1,6 +1,7 @@
 """Unified /api prefix — reuses the crm router + new scout/pipeline endpoints."""
 from __future__ import annotations
 
+import json
 import os
 import time
 import uuid
@@ -115,3 +116,25 @@ def test_api_scout_thread_crud(client):
         conn.execute(text("DELETE FROM scout_messages WHERE thread_id = :id"), {"id": uuid.UUID(thread_id)})
         conn.execute(text("DELETE FROM scout_threads WHERE id = :id"), {"id": uuid.UUID(thread_id)})
     eng.dispose()
+
+
+@pytest.mark.skipif(not _database_url(), reason="DATABASE_URL not set")
+def test_api_lead_detail_returns_research(client):
+    url = f"https://api-research-{uuid.uuid4().hex[:8]}.example.com"
+    r = client.post("/api/leads", json={"name": "Research Co", "url": url, "source": "pytest"})
+    lead_id = r.json()["id"]
+    eng = create_engine(_database_url())
+    with eng.begin() as conn:
+        conn.execute(text("UPDATE leads SET research = :r WHERE id = :id"),
+                     {"r": json.dumps({"summary": "s", "status": "ok"}), "id": uuid.UUID(lead_id)})
+    eng.dispose()
+    try:
+        r = client.get(f"/api/leads/{lead_id}")
+        assert r.status_code == 200, r.text
+        assert r.json()["research"]["summary"] == "s"
+    finally:
+        eng = create_engine(_database_url())
+        with eng.begin() as conn:
+            conn.execute(text("DELETE FROM lead_events WHERE lead_id = :id"), {"id": uuid.UUID(lead_id)})
+            conn.execute(text("DELETE FROM leads WHERE id = :id"), {"id": uuid.UUID(lead_id)})
+        eng.dispose()
