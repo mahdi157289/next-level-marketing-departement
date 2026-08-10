@@ -212,7 +212,7 @@ def hunter(
     """Investigate a lead: detect empty columns, web-search them, mine values, summarize."""
     pseudo = {"name": name, "url": url, "industry": industry, "country": country, **fields}
     if gaps is None:
-        gaps = [c for c in _huntable_columns() if c not in HUNT_DENYLIST and not _is_empty(pseudo.get(c))]
+        gaps = [c for c in _huntable_columns() if c not in HUNT_DENYLIST and _is_empty(pseudo.get(c))]
     queries = _build_queries(name, url=url, industry=industry, country=country, gaps=gaps)
     if not queries:
         return {"summary": "", "fields_found": {}, "sources": [], "queries": [], "status": "no_results",

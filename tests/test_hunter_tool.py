@@ -35,6 +35,17 @@ def test_hunter_returns_full_payload_and_fills_gaps():
     assert out["sources"]
 
 
+def test_hunter_default_gaps_are_empty_columns():
+    with patch("tools.hunter_tool._run_searches", return_value=[]):
+        out = hunter(name="Acme", country="Tunisia")
+    assert out["status"] == "no_results"
+    joined = " ".join(out["queries"])
+    assert "email OR contact" in joined        # empty column is hunted
+    assert "phone OR telephone" in joined      # empty column is hunted
+    assert "Acme name" not in joined           # populated column is NOT hunted
+    assert "Acme country" not in joined        # populated column is NOT hunted
+
+
 def test_hunter_never_raises_on_search_failure():
     with patch("tools.hunter_tool._run_searches", return_value=[]), \
          patch("tools.hunter_tool._synthesize_summary", return_value=""):
