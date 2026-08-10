@@ -52,6 +52,7 @@ class Lead(Base):
     linkedin = Column(String(512))
     twitter = Column(String(512))
     tags = Column(JSON)
+    research = Column(JSON)
     automation_gaps = Column(JSON)
     social_engagement = Column(JSON)
     weaknesses = Column(JSON)

@@ -298,7 +298,7 @@ def enrich_lead(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[str] 
             "email", "phone", "industry", "country", "business_type", "seo_score",
             "address", "google_maps_url", "rating", "review_count",
             "hours", "description", "price_level", "facebook", "instagram",
-            "linkedin", "twitter", "tags",
+            "linkedin", "twitter", "tags", "research",
         ):
             if key not in data or data[key] is None:
                 continue
@@ -307,6 +307,8 @@ def enrich_lead(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[str] 
                 val = _to_rating(val)
             elif key == "review_count":
                 val = _to_review_count(val)
+            elif key == "research":
+                val = val if isinstance(val, dict) else None
             elif key == "tags":
                 val = val if isinstance(val, list) else None
             elif key != "seo_score":
