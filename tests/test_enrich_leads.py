@@ -241,3 +241,49 @@ def test_google_maps_place_parses_lead():
     assert hit["email"] == "hi@place-one.tn"
     assert hit["rating"] == "4.5"
     assert hit["google_maps_url"] == "https://google.com/maps/place/Place+One"
+
+
+# --- hunt step (research summary) ---
+
+
+@pytest.mark.skipif(not _db_url(), reason="DATABASE_URL not set")
+def test_enrich_one_hunts_missing_fields():
+    from unittest.mock import patch
+
+    from crm.client import _AgentRunContext
+    from workflows.enrich_leads import _enrich_one
+
+    url = _unique_url("huntstep")
+    lead = service.create_lead({
+        "name": "HuntStep Co", "url": url, "source": "pytest",
+        "google_maps_url": "https://google.com/maps/place/x",
+        "address": "Tunis", "rating": 4.5, "review_count": 10,
+        "country": "Tunisia", "industry": "Software", "business_type": "software",
+        "email": "a@huntstep.tn", "phone": "+21611111111", "seo_score": 80,
+        "hours": "Mon-Fri", "description": "d", "price_level": "$$",
+        "facebook": "https://fb.co/h", "instagram": "https://ig.co/h",
+        "linkedin": "https://ln.co/h", "twitter": "https://x.co/h", "tags": ["x"],
+    })
+    pipeline = service.start_pipeline_run("pytest", "hunt-step", {})
+    agent_run = service.start_agent_run(
+        str(pipeline["id"]), "enrich", model="n/a", input_summary="hunt-step-test"
+    )
+    try:
+        fake = {
+            "summary": "HuntStep summary",
+            "fields_found": {"email": "ops@huntstep.tn", "facebook": "https://facebook.com/huntstep"},
+            "sources": [{"title": "t", "url": "https://s.tn", "snippet": "s"}],
+            "queries": ["q"], "status": "ok",
+        }
+        run = _AgentRunContext(str(agent_run["id"]))
+        with patch("workflows.enrich_leads.resolve_callable", return_value=lambda *a, **k: fake):
+            res = _enrich_one(lead, run, lambda: False)
+        assert "hunt" in res["steps"]
+        fresh = service.get_lead(str(lead["id"]))
+        assert fresh["research"]["summary"] == "HuntStep summary"
+        assert fresh["research"]["fields_found"]["email"] == "ops@huntstep.tn"
+        assert fresh["email"] == "a@huntstep.tn"  # gap-only: pre-filled field untouched
+    finally:
+        _cleanup(url)
+        service.complete_agent_run(str(agent_run["id"]), "success")
+        service.complete_pipeline_run(str(pipeline["id"]), "cancelled", {"reason": "test_cleanup"})

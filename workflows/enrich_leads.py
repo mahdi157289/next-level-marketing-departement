@@ -249,6 +249,27 @@ def _enrich_one(
             service.enrich_missing(lid, {"seo_score": score}, agent_run_id=run.id)
             steps.append("seo")
 
+    # 5) Web-search investigation for any remaining gaps (research summary).
+    if not lead.get("research"):
+        hunter_fn = resolve_callable("hunter")
+        if hunter_fn:
+            run.record_api("ddgs", "hunter")
+            try:
+                hunt = hunter_fn(
+                    name=lead.get("name") or "",
+                    url=lead.get("url") or "",
+                    industry=lead.get("industry") or "",
+                    country=lead.get("country") or "",
+                )
+            except BaseException:
+                hunt = None
+            if hunt and (hunt.get("fields_found") or hunt.get("summary")):
+                data = {"research": hunt}
+                if hunt.get("fields_found"):
+                    data.update(hunt["fields_found"])
+                service.enrich_missing(lid, data, agent_run_id=run.id)
+                steps.append("hunt")
+
     refreshed = service.get_lead(lid) or lead
     after = set(service.lead_gaps(refreshed))
     filled = sorted(before - after)
