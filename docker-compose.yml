@@ -110,7 +110,7 @@ services:
       AGENT_MODEL_DISCOVERY: google/gemma-4-26b-a4b-it:free
       AGENT_MODEL_HEAD: google/gemma-4-26b-a4b-it:free
       META_ADS_ACCESS_TOKEN: ${META_ADS_ACCESS_TOKEN}
-      OLLAMA_BASE_URL: http://nextlevel-ollama:11434
+      OLLAMA_BASE_URL: http://ollama:11434
       JANUSGRAPH_BASE_URL: ws://janusgraph:8182/gremlin
       REDIS_URL: redis://redis:6379/2
       SEARXNG_BASE_URL: http://searxng:8080
