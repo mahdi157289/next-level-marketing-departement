@@ -18,7 +18,8 @@ def test_site_extract_returns_markdown_and_fields():
     with patch("tools.site_extract_tool._cached", return_value=None), \
          patch("tools.site_extract_tool._robots_allows", return_value=True), \
          patch("tools.site_extract_tool._crawl_sync", return_value=_page()), \
-         patch("tools.site_extract_tool.chat_completion", return_value='{"email": "hello@acme.tn"}'):
+         patch("tools.site_extract_tool.chat_completion", return_value='{"email": "hello@acme.tn"}'), \
+         patch("tools.site_extract_tool._persist_and_embed"):
         out = site_extract("https://acme.tn", fields=["email"])
     assert out["status"] == "ok"
     assert out["markdown"]
@@ -55,3 +56,35 @@ def test_parse_json_object_handles_fences_and_garbage():
 def test_llm_extract_fields_returns_empty_on_bad_output():
     with patch("tools.site_extract_tool.chat_completion", return_value="not json at all"):
         assert _llm_extract_fields(["email"], "content") == {}
+
+
+def test_site_extract_returns_cache_hit():
+    cached = {"status": "ok", "title": "Acme", "markdown": "cached md",
+              "fields": {"hours": "9-18"}, "source": "cache"}
+    with patch("tools.site_extract_tool._cached", return_value=cached):
+        out = site_extract("https://acme.tn", fields=["hours"])
+    assert out["source"] == "cache"
+    assert out["fields"]["hours"] == "9-18"
+
+
+def test_site_extract_persists_and_embeds_after_crawl():
+    with patch("tools.site_extract_tool._cached", return_value=None), \
+         patch("tools.site_extract_tool._robots_allows", return_value=True), \
+         patch("tools.site_extract_tool._crawl_sync", return_value=_page()), \
+         patch("tools.site_extract_tool.chat_completion", return_value='{"email": "a@b.tn"}'), \
+         patch("tools.site_extract_tool._persist_and_embed") as persist:
+        site_extract("https://acme.tn", fields=["email"])
+    persist.assert_called_once()
+
+
+def test_site_extract_degrades_when_embedding_fails():
+    def _boom(*a, **k):
+        raise RuntimeError("ollama down")
+
+    with patch("tools.site_extract_tool._cached", return_value=None), \
+         patch("tools.site_extract_tool._robots_allows", return_value=True), \
+         patch("tools.site_extract_tool._crawl_sync", return_value=_page()), \
+         patch("tools.site_extract_tool.chat_completion", return_value="{}"), \
+         patch("tools.site_extract_tool._persist_and_embed", side_effect=_boom):
+        out = site_extract("https://acme.tn", fields=["email"])
+    assert out["status"] == "ok"

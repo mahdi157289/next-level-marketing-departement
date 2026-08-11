@@ -245,3 +245,20 @@ class ScoutMessage(Base):
     tool_args = Column(JSON)
     tool_result = Column(JSON)
     created_at = Column(TIMESTAMP, default=datetime.utcnow)
+
+
+class CrawlPage(Base):
+    """One crawled page — durable cache + source of truth for research hits."""
+
+    __tablename__ = "crawl_pages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    url = Column(String(512), nullable=False, unique=True)
+    title = Column(String(512))
+    domain = Column(String(256))
+    markdown = Column(Text)
+    fields = Column(JSON)
+    status = Column(String(32))
+    source = Column(String(32))
+    tags = Column(JSON)
+    fetched_at = Column(TIMESTAMP, default=datetime.utcnow)
