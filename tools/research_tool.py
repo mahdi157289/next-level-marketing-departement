@@ -1,4 +1,4 @@
-"""research — CRM-driven lead investigation tool (replaces hunter).
+"""research — CRM-driven lead investigation tool (fills missing lead fields).
 
 Detects empty columns on a lead, runs field-targeted web searches (self-hosted
 SearXNG with DDGS fallback), and fills remaining gaps by extracting the lead's

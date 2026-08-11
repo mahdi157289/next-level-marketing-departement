@@ -278,7 +278,7 @@ def test_enrich_one_hunts_missing_fields():
         run = _AgentRunContext(str(agent_run["id"]))
         with patch("workflows.enrich_leads.resolve_callable", return_value=lambda *a, **k: fake):
             res = _enrich_one(lead, run, lambda: False)
-        assert "hunt" in res["steps"]
+        assert "research" in res["steps"]
         fresh = service.get_lead(str(lead["id"]))
         assert fresh["research"]["summary"] == "HuntStep summary"
         assert fresh["research"]["fields_found"]["email"] == "ops@huntstep.tn"
@@ -290,7 +290,7 @@ def test_enrich_one_hunts_missing_fields():
 
 
 @pytest.mark.skipif(not _db_url(), reason="DATABASE_URL not set")
-def test_enrich_one_passes_current_values_to_hunter_as_fields():
+def test_enrich_one_passes_current_values_to_research_as_fields():
     from unittest.mock import patch
 
     from crm.client import _AgentRunContext
@@ -311,12 +311,12 @@ def test_enrich_one_passes_current_values_to_hunter_as_fields():
         captured: dict = {}
         fake = {"summary": "s", "fields_found": {}, "sources": [], "queries": [], "status": "ok"}
 
-        def _fake_hunter(*_a, **_k):
+        def _fake_research(*_a, **_k):
             captured["kwargs"] = _k
             return fake
 
         run = _AgentRunContext(str(agent_run["id"]))
-        with patch("workflows.enrich_leads.resolve_callable", return_value=_fake_hunter):
+        with patch("workflows.enrich_leads.resolve_callable", return_value=_fake_research):
             _enrich_one(lead, run, lambda: False)
         kwargs = captured["kwargs"]
         assert kwargs["email"] == "have@huntpass.tn"

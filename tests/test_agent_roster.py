@@ -80,7 +80,7 @@ def test_get_agent_profile_falls_back_to_roster():
     p = service.get_agent_profile("categorization")
     assert p is not None
     assert p["display_name"] == "Categorization"
-    assert p["enabled_tools"] == ["llm_chat", "hunter"]
+    assert p["enabled_tools"] == ["llm_chat", "research"]
     assert p["mission_prompt"] is None
 
 

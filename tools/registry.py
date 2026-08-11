@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 TOOL_CATALOG: List[Dict[str, Any]] = [
     {
         "id": "web_search",
-        "label": "DuckDuckGo / DDGS web search",
+        "label": "Self-hosted SearXNG / DuckDuckGo web search",
         "agents": ["discovery"],
     },
     {
@@ -52,12 +52,17 @@ TOOL_CATALOG: List[Dict[str, Any]] = [
         "agents": ["discovery"],
     },
     {
-        "id": "hunter",
-        "label": "CRM lead investigation: hunt missing fields via web search",
+        "id": "research",
+        "label": "CRM lead research: fill missing fields via SearXNG + site extraction",
         "agents": [
             "discovery", "head", "qualifier", "categorization",
             "analysis", "outreach", "content",
         ],
+    },
+    {
+        "id": "site_extract",
+        "label": "Extract page content as markdown + JSON fields (Crawl4AI)",
+        "agents": ["discovery"],
     },
 ]
 
@@ -170,10 +175,14 @@ def resolve_callable(tool_id: str) -> Optional[Callable[..., Any]]:
         from tools.scrape_tool import scrape_tool
 
         return scrape_tool
-    if tool_id == "hunter":
-        from tools.hunter_tool import hunter
+    if tool_id == "research":
+        from tools.research_tool import research
 
-        return hunter
+        return research
+    if tool_id == "site_extract":
+        from tools.site_extract_tool import site_extract
+
+        return site_extract
     if tool_id in ("crm_write_leads", "llm_chat"):
         return None  # handled inline by agents
     return None

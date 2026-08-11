@@ -15,39 +15,39 @@ AGENT_ROSTER: List[Dict[str, object]] = [
         "description": "Searches the web/maps/ad library and writes leads.",
         "default_tools": [
             "web_search", "google_maps_search", "meta_ads_search",
-            "crm_write_leads", "llm_chat", "seo_audit", "scrape", "hunter",
+            "crm_write_leads", "llm_chat", "seo_audit", "scrape", "site_extract", "research",
         ],
         "providers": ["openai", "serpapi", "google_maps", "meta_ads"],
     },
     {
         "name": "head", "display_name": "Head (Supervisor)",
         "description": "Plans missions and dispatches subordinate agents.",
-        "default_tools": ["llm_chat", "hunter"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
     },
     {
         "name": "qualifier", "display_name": "Qualifier",
         "description": "Scores and qualifies leads against the service catalog.",
-        "default_tools": ["llm_chat", "hunter"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
     },
     {
         "name": "categorization", "display_name": "Categorization",
         "description": "Tags leads with country, industry, business type.",
-        "default_tools": ["llm_chat", "hunter"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
     },
     {
         "name": "analysis", "display_name": "Analysis",
         "description": "Enriches leads with SEO score, email, phone, lead score.",
-        "default_tools": ["llm_chat", "hunter"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
     },
     {
         "name": "outreach", "display_name": "Outreach",
         "description": "Contacts leads (planned: SMTP/WhatsApp).",
-        "default_tools": ["llm_chat", "hunter"], "providers": ["openai", "smtp", "whatsapp"],
+        "default_tools": ["llm_chat", "research"], "providers": ["openai", "smtp", "whatsapp"],
     },
     {
         "name": "content", "display_name": "Content",
         "description": "Produces marketing content (planned: WordPress/social).",
-        "default_tools": ["llm_chat", "hunter"], "providers": ["openai", "wordpress"],
+        "default_tools": ["llm_chat", "research"], "providers": ["openai", "wordpress"],
     },
 ]
 

@@ -251,11 +251,11 @@ def _enrich_one(
 
     # 5) Web-search investigation for any remaining gaps (research summary).
     if not lead.get("research"):
-        hunter_fn = resolve_callable("hunter")
-        if hunter_fn:
-            run.record_api("ddgs", "hunter")
+        research_fn = resolve_callable("research")
+        if research_fn:
+            run.record_api("searxng", "research")
             try:
-                hunt = hunter_fn(
+                result = research_fn(
                     name=lead.get("name") or "",
                     url=lead.get("url") or "",
                     industry=lead.get("industry") or "",
@@ -264,13 +264,13 @@ def _enrich_one(
                        if k not in ("industry", "country")},
                 )
             except BaseException:
-                hunt = None
-            if hunt and (hunt.get("fields_found") or hunt.get("summary")):
-                data = {"research": hunt}
-                if hunt.get("fields_found"):
-                    data.update(hunt["fields_found"])
+                result = None
+            if result and (result.get("fields_found") or result.get("summary")):
+                data = {"research": result}
+                if result.get("fields_found"):
+                    data.update(result["fields_found"])
                 service.enrich_missing(lid, data, agent_run_id=run.id)
-                steps.append("hunt")
+                steps.append("research")
 
     refreshed = service.get_lead(lid) or lead
     after = set(service.lead_gaps(refreshed))

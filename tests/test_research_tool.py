@@ -99,3 +99,31 @@ def test_domain_strips_www_and_scheme():
     assert _domain("https://www.acme.tn/") == "acme.tn"
     assert _domain("http://acme.com") == "acme.com"
     assert _domain("") == ""
+
+
+from crm.agents_registry import AGENT_ROSTER
+from tools.registry import DISCOVERY_REQUIRED_TOOLS, TOOL_CATALOG, resolve_callable, validate_tool_ids
+
+
+def test_research_in_catalog_for_all_agents():
+    entry = next(t for t in TOOL_CATALOG if t["id"] == "research")
+    assert set(entry["agents"]) == {a["name"] for a in AGENT_ROSTER}
+
+
+def test_research_resolves():
+    assert callable(resolve_callable("research"))
+
+
+def test_research_valid_for_every_agent():
+    for a in AGENT_ROSTER:
+        tools = (
+            sorted(DISCOVERY_REQUIRED_TOOLS) + ["research", "site_extract"]
+            if a["name"] == "discovery"
+            else ["research"]
+        )
+        validate_tool_ids(tools, agent_name=a["name"])
+
+
+def test_research_in_all_roster_default_tools():
+    for a in AGENT_ROSTER:
+        assert "research" in a["default_tools"]
