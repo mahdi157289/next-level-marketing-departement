@@ -224,7 +224,10 @@ def research(
     extract the site for anything still missing, and summarize."""
     pseudo = {"name": name, "url": url, "industry": industry, "country": country, **fields}
     if gaps is None:
-        gaps = [c for c in _huntable_columns() if _is_empty(pseudo.get(c))]
+        from crm.value_validation import is_unrealistic_value
+
+        gaps = [c for c in _huntable_columns()
+                if _is_empty(pseudo.get(c)) or is_unrealistic_value(c, pseudo.get(c))]
     queries = _build_queries(name, url=url, industry=industry, country=country, gaps=gaps)
     if not queries:
         return {"summary": "", "fields_found": {}, "sources": [], "queries": [],

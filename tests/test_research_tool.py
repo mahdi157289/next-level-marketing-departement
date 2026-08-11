@@ -50,6 +50,28 @@ def test_research_default_gaps_are_empty_columns():
     assert "Acme country" not in joined        # populated column is NOT hunted
 
 
+def test_research_hunts_suspicious_fields():
+    kwargs = {
+        "name": "Acme", "url": "https://acme.tn", "industry": "Software", "country": "Tunisia",
+        "address": "Avenue Habib Bourguiba, Tunis", "review_count": 12, "seo_score": 80,
+        "phone": "+216 71 123 456", "hours": "Mon-Fri 9:00-18:00",
+        "description": "A real long description of the company.", "price_level": "$$",
+        "facebook": "https://facebook.com/acme", "instagram": "@acme",
+        "linkedin": "https://linkedin.com/company/acme", "twitter": "@acme",
+        "tags": ["SaaS"], "business_type": "saas", "lead_score": 40,
+        "rating": 11,  # unrealistic
+        "email": "bad",  # malformed
+    }
+    with patch("tools.research_tool._run_searches", return_value=[]):
+        out = research(**kwargs)
+    assert out["status"] == "no_results"
+    joined = " ".join(out["queries"])
+    assert "Acme reviews" in joined  # unrealistic rating is hunted
+    assert "email OR contact" in joined  # malformed email is hunted
+    assert "address OR adresse" not in joined  # realistic values are not hunted
+    assert "Acme facebook" not in joined  # realistic values are not hunted
+
+
 def test_research_never_raises_on_search_failure():
     with patch("tools.research_tool._run_searches", return_value=[]), \
          patch("tools.research_tool._synthesize_summary", return_value=""):
