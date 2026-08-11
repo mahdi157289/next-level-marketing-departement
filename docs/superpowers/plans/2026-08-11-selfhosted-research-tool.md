@@ -129,9 +129,11 @@ In `config/settings.py`, after `orchestrator_workers: int = 3`:
 
 In `tools/web_search_tool.py`:
 
-1. Add to the imports (after `from typing import ...`):
+1. Add to the imports (after the `from urllib.parse import urlparse` line):
 
 ```python
+from config.settings import get_settings
+
 import httpx
 ```
 
@@ -140,8 +142,6 @@ import httpx
 ```python
 def searxng_search(query: str, max_results: int = 10) -> List[Dict[str, str]]:
     """Self-hosted SearXNG JSON search → [{title, url, snippet}]. Never raises."""
-    from config.settings import get_settings
-
     s = get_settings()
     base = (s.searxng_base_url or "").strip().rstrip("/")
     if not base:
