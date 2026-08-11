@@ -13,11 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt requirements-agents-crewai.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-agents-crewai.txt
+COPY requirements.txt requirements-agents-crewai.txt requirements-crawl4ai.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-agents-crewai.txt -r requirements-crawl4ai.txt
 
 RUN playwright install-deps chromium \
     && playwright install chromium
+
+RUN crawl4ai-setup
 
 COPY . .
 
