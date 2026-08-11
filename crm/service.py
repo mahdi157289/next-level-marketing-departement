@@ -27,6 +27,7 @@ from db.session import SessionLocal
 from db.secrets import decrypt_secret, encrypt_secret
 from tools.registry import TOOL_CATALOG, catalog_for_agent, validate_tool_ids
 from crm.agents_registry import AGENT_ROSTER, roster_entry
+from crm.value_validation import is_unrealistic_value
 
 
 def _session() -> Session:
@@ -71,6 +72,13 @@ def _is_empty(value: Any) -> bool:
 def lead_gaps(lead: Dict[str, Any]) -> List[str]:
     """List FILLABLE_FIELDS that are currently empty on a lead."""
     return [f for f in FILLABLE_FIELDS if _is_empty(lead.get(f))]
+
+
+def lead_problems(lead: Dict[str, Any]) -> Dict[str, str]:
+    """Fillable fields that are populated but look unrealistic (placeholders,
+    impossible ranges, malformed emails/phones). Hunting targets these too."""
+    return {f: "unrealistic" for f in FILLABLE_FIELDS
+            if lead.get(f) is not None and is_unrealistic_value(f, lead.get(f))}
 
 
 # --- Leads ---
@@ -367,6 +375,25 @@ def enrich_missing(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[st
         k: v for k, v in (data or {}).items()
         if v is not None and _is_empty(lead.get(k))
     }
+    if not filtered:
+        return lead
+    return enrich_lead(lead_id, filtered, agent_run_id=agent_run_id)
+
+
+def enrich_hunt(lead_id: str, data: Dict[str, Any], agent_run_id: Optional[str] = None) -> Optional[Dict[str, Any]]:
+    """Hunt-safe write: fill empty fields, and overwrite only a field whose
+    current value is unrealistic when the new value validates. Never regresses
+    a good value. Returns the refreshed lead dict."""
+    lead = get_lead(lead_id)
+    if not lead:
+        return None
+    filtered: Dict[str, Any] = {}
+    for k, v in (data or {}).items():
+        if v is None:
+            continue
+        cur = lead.get(k)
+        if _is_empty(cur) or (is_unrealistic_value(k, cur) and not is_unrealistic_value(k, v)):
+            filtered[k] = v
     if not filtered:
         return lead
     return enrich_lead(lead_id, filtered, agent_run_id=agent_run_id)
