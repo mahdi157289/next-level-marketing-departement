@@ -7,11 +7,14 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 
+_ALL_AGENTS = ["discovery", "head", "qualifier", "categorization",
+               "analysis", "outreach", "content"]
+
 TOOL_CATALOG: List[Dict[str, Any]] = [
     {
         "id": "web_search",
         "label": "Self-hosted SearXNG / DuckDuckGo web search",
-        "agents": ["discovery"],
+        "agents": _ALL_AGENTS,
     },
     {
         "id": "meta_ads_search",
@@ -62,7 +65,7 @@ TOOL_CATALOG: List[Dict[str, Any]] = [
     {
         "id": "site_extract",
         "label": "Extract page content as markdown + JSON fields (Crawl4AI)",
-        "agents": ["discovery"],
+        "agents": _ALL_AGENTS,
     },
 ]
 

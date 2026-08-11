@@ -49,6 +49,39 @@ _TOOLS_SCHEMA = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "site_extract",
+            "description": "Fetch a URL, extract the page as markdown, and optionally pull specific lead fields as JSON.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "Absolute URL to fetch"},
+                    "fields": {"type": "array", "items": {"type": "string"},
+                               "description": "Optional lead fields to extract"},
+                },
+                "required": ["url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "research",
+            "description": "Investigate a lead: fill missing or unrealistic fields via web search + site extraction.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string", "description": "Lead/company name"},
+                    "url": {"type": "string", "description": "Lead website URL"},
+                    "industry": {"type": "string", "description": "Industry"},
+                    "country": {"type": "string", "description": "Country"},
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 _FALLBACK_DECISION_PROMPT = (

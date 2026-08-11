@@ -50,7 +50,8 @@ def test_llm_chat_available_to_all_roster_agents():
     for name in roster_names():
         ids = {t["id"] for t in catalog_for_agent(name)}
         assert "llm_chat" in ids, name
-        tools = sorted(DISCOVERY_REQUIRED_TOOLS) if name == "discovery" else ["llm_chat"]
+        tools = (sorted(DISCOVERY_REQUIRED_TOOLS) if name == "discovery"
+                 else ["llm_chat", "web_search", "site_extract", "research"])
         assert validate_tool_ids(tools, agent_name=name) == tools
 
 
@@ -80,7 +81,7 @@ def test_get_agent_profile_falls_back_to_roster():
     p = service.get_agent_profile("categorization")
     assert p is not None
     assert p["display_name"] == "Categorization"
-    assert p["enabled_tools"] == ["llm_chat", "research"]
+    assert p["enabled_tools"] == ["llm_chat", "research", "web_search", "site_extract"]
     assert p["mission_prompt"] is None
 
 

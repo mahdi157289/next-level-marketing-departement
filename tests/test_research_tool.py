@@ -114,16 +114,21 @@ def test_research_resolves():
     assert callable(resolve_callable("research"))
 
 
-def test_research_valid_for_every_agent():
+def test_hunt_tools_valid_for_every_agent():
     for a in AGENT_ROSTER:
-        tools = (
-            sorted(DISCOVERY_REQUIRED_TOOLS) + ["research", "site_extract"]
-            if a["name"] == "discovery"
-            else ["research"]
-        )
-        validate_tool_ids(tools, agent_name=a["name"])
+        tools = (sorted(DISCOVERY_REQUIRED_TOOLS) + ["site_extract", "research"]
+                 if a["name"] == "discovery"
+                 else ["web_search", "site_extract", "research"])
+        assert validate_tool_ids(tools, agent_name=a["name"]) == tools
 
 
-def test_research_in_all_roster_default_tools():
+def test_web_search_and_site_extract_in_catalog_for_all_agents():
+    for entry in TOOL_CATALOG:
+        if entry["id"] in ("web_search", "site_extract", "research"):
+            assert set(entry["agents"]) == {a["name"] for a in AGENT_ROSTER}, entry["id"]
+
+
+def test_hunt_tools_in_all_roster_default_tools():
     for a in AGENT_ROSTER:
-        assert "research" in a["default_tools"]
+        for tid in ("web_search", "site_extract", "research"):
+            assert tid in a["default_tools"], (a["name"], tid)

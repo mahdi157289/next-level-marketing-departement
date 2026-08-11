@@ -22,32 +22,32 @@ AGENT_ROSTER: List[Dict[str, object]] = [
     {
         "name": "head", "display_name": "Head (Supervisor)",
         "description": "Plans missions and dispatches subordinate agents.",
-        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research", "web_search", "site_extract"], "providers": ["openai"],
     },
     {
         "name": "qualifier", "display_name": "Qualifier",
         "description": "Scores and qualifies leads against the service catalog.",
-        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research", "web_search", "site_extract"], "providers": ["openai"],
     },
     {
         "name": "categorization", "display_name": "Categorization",
         "description": "Tags leads with country, industry, business type.",
-        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research", "web_search", "site_extract"], "providers": ["openai"],
     },
     {
         "name": "analysis", "display_name": "Analysis",
         "description": "Enriches leads with SEO score, email, phone, lead score.",
-        "default_tools": ["llm_chat", "research"], "providers": ["openai"],
+        "default_tools": ["llm_chat", "research", "web_search", "site_extract"], "providers": ["openai"],
     },
     {
         "name": "outreach", "display_name": "Outreach",
         "description": "Contacts leads (planned: SMTP/WhatsApp).",
-        "default_tools": ["llm_chat", "research"], "providers": ["openai", "smtp", "whatsapp"],
+        "default_tools": ["llm_chat", "research", "web_search", "site_extract"], "providers": ["openai", "smtp", "whatsapp"],
     },
     {
         "name": "content", "display_name": "Content",
         "description": "Produces marketing content (planned: WordPress/social).",
-        "default_tools": ["llm_chat", "research"], "providers": ["openai", "wordpress"],
+        "default_tools": ["llm_chat", "research", "web_search", "site_extract"], "providers": ["openai", "wordpress"],
     },
 ]
 
