@@ -282,7 +282,54 @@ def test_enrich_one_hunts_missing_fields():
         fresh = service.get_lead(str(lead["id"]))
         assert fresh["research"]["summary"] == "HuntStep summary"
         assert fresh["research"]["fields_found"]["email"] == "ops@huntstep.tn"
-        assert fresh["email"] == "a@huntstep.tn"  # gap-only: pre-filled field untouched
+        assert fresh["email"] == "a@huntstep.tn"  # realistic pre-filled value untouched
+        assert fresh["facebook"] == "https://facebook.com/huntstep"  # fb.co was junk -> fixed
+        assert fresh["research"]["hunted_fields"] == ["facebook"]
+    finally:
+        _cleanup(url)
+        service.complete_agent_run(str(agent_run["id"]), "success")
+        service.complete_pipeline_run(str(pipeline["id"]), "cancelled", {"reason": "test_cleanup"})
+
+
+@pytest.mark.skipif(not _db_url(), reason="DATABASE_URL not set")
+def test_enrich_one_records_hunted_fields_including_fixes():
+    from unittest.mock import patch
+
+    from crm.client import _AgentRunContext
+    from workflows.enrich_leads import _enrich_one
+
+    url = _unique_url("hunted")
+    lead = service.create_lead({
+        "name": "Hunted Co", "url": url, "source": "pytest",
+        "google_maps_url": "https://google.com/maps/place/x",
+        "address": "Avenue Habib Bourguiba, Tunis", "rating": 4.5, "review_count": 10,
+        "country": "Tunisia", "industry": "Software", "business_type": "software",
+        "email": "bad", "phone": "+216 11 111 111", "seo_score": 80,
+        "hours": "Mon-Fri 9:00-18:00", "description": "", "price_level": "$$",
+        "facebook": "https://facebook.com/hunted", "instagram": "https://instagram.com/hunted",
+        "linkedin": "https://linkedin.com/company/hunted", "twitter": "https://twitter.com/hunted",
+        "tags": ["SaaS"],
+    })
+    pipeline = service.start_pipeline_run("pytest", "hunt-step", {})
+    agent_run = service.start_agent_run(
+        str(pipeline["id"]), "enrich", model="n/a", input_summary="hunted-fix-test"
+    )
+    try:
+        fake = {
+            "summary": "Hunted summary",
+            "fields_found": {
+                "email": "ops@hunted.tn",  # fixes the unrealistic value
+                "description": "A real, long company description.",
+            },
+            "sources": [], "queries": [], "status": "ok",
+        }
+        run = _AgentRunContext(str(agent_run["id"]))
+        with patch("workflows.enrich_leads.resolve_callable", return_value=lambda *a, **k: fake):
+            _enrich_one(lead, run, lambda: False)
+        fresh = service.get_lead(str(lead["id"]))
+        assert fresh["email"] == "ops@hunted.tn"
+        assert fresh["description"] == "A real, long company description."
+        assert fresh["research"]["hunted_fields"] == ["description", "email"]
     finally:
         _cleanup(url)
         service.complete_agent_run(str(agent_run["id"]), "success")

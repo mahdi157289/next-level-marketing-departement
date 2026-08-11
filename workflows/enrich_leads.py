@@ -202,6 +202,7 @@ def _enrich_one(
     if should_cancel():
         return {"lead_id": lid, "cancelled": True, "filled": [], "steps": []}
     before = set(service.lead_gaps(lead))
+    probs_before = set(service.lead_problems(lead))
     steps: List[str] = []
 
     # 1) Maps data — re-scrape existing maps URL, else look up by name.
@@ -249,8 +250,8 @@ def _enrich_one(
             service.enrich_missing(lid, {"seo_score": score}, agent_run_id=run.id)
             steps.append("seo")
 
-    # 5) Web-search investigation for any remaining gaps (research summary).
-    if not lead.get("research"):
+    # 5) Web-search investigation for empty or unrealistic gaps (research summary).
+    if not lead.get("research") or probs_before:
         research_fn = resolve_callable("research")
         if research_fn:
             run.record_api("searxng", "research")
@@ -269,12 +270,19 @@ def _enrich_one(
                 data = {"research": result}
                 if result.get("fields_found"):
                     data.update(result["fields_found"])
-                service.enrich_missing(lid, data, agent_run_id=run.id)
+                service.enrich_hunt(lid, data, agent_run_id=run.id)
                 steps.append("research")
 
     refreshed = service.get_lead(lid) or lead
     after = set(service.lead_gaps(refreshed))
     filled = sorted(before - after)
+    fixed = sorted(probs_before - set(service.lead_problems(refreshed)))
+    hunted = sorted(set(filled) | set(fixed))
+    if hunted:
+        res = refreshed.get("research")
+        res = dict(res) if isinstance(res, dict) else {}
+        res["hunted_fields"] = hunted
+        service.enrich_lead(lid, {"research": res}, agent_run_id=run.id)
     return {"lead_id": lid, "cancelled": False, "filled": filled, "steps": steps}
 
 
