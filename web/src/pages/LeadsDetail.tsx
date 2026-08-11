@@ -28,25 +28,26 @@ export default function LeadsDetail() {
 
   if (!lead) return <p className="muted">Loading…</p>;
 
-  const rows: Array<[string, string]> = [
-    ["Source", lead.source ?? "—"],
-    ["Country", lead.country ?? "—"],
-    ["Address", lead.address ?? "—"],
-    ["Rating", lead.rating != null ? `${lead.rating}${lead.review_count ? ` (${lead.review_count} reviews)` : ""}` : "—"],
-    ["Hours", lead.hours ?? "—"],
-    ["Price level", lead.price_level ?? "—"],
-    ["Industry", lead.industry ?? "—"],
-    ["Business type", lead.business_type ?? "—"],
-    ["Email", lead.email ?? "—"],
-    ["Phone", lead.phone ?? "—"],
-    ["Facebook", lead.facebook ?? "—"],
-    ["Instagram", lead.instagram ?? "—"],
-    ["LinkedIn", lead.linkedin ?? "—"],
-    ["Twitter / X", lead.twitter ?? "—"],
-    ["Tags", (lead.tags?.length ? lead.tags.join(", ") : "—")],
-    ["Description", lead.description ?? "—"],
-    ["SEO score", lead.seo_score != null ? String(lead.seo_score) : "—"],
-    ["Lead score", lead.lead_score != null ? String(lead.lead_score) : "—"],
+  const hunted = new Set<string>(lead.research?.hunted_fields ?? []);
+  const rows: Array<[string, string, string]> = [
+    ["Source", lead.source ?? "—", "source"],
+    ["Country", lead.country ?? "—", "country"],
+    ["Address", lead.address ?? "—", "address"],
+    ["Rating", lead.rating != null ? `${lead.rating}${lead.review_count ? ` (${lead.review_count} reviews)` : ""}` : "—", "rating"],
+    ["Hours", lead.hours ?? "—", "hours"],
+    ["Price level", lead.price_level ?? "—", "price_level"],
+    ["Industry", lead.industry ?? "—", "industry"],
+    ["Business type", lead.business_type ?? "—", "business_type"],
+    ["Email", lead.email ?? "—", "email"],
+    ["Phone", lead.phone ?? "—", "phone"],
+    ["Facebook", lead.facebook ?? "—", "facebook"],
+    ["Instagram", lead.instagram ?? "—", "instagram"],
+    ["LinkedIn", lead.linkedin ?? "—", "linkedin"],
+    ["Twitter / X", lead.twitter ?? "—", "twitter"],
+    ["Tags", (lead.tags?.length ? lead.tags.join(", ") : "—"), "tags"],
+    ["Description", lead.description ?? "—", "description"],
+    ["SEO score", lead.seo_score != null ? String(lead.seo_score) : "—", "seo_score"],
+    ["Lead score", lead.lead_score != null ? String(lead.lead_score) : "—", "lead_score"],
   ];
 
   return (
@@ -89,11 +90,22 @@ export default function LeadsDetail() {
       <div className="panel">
         <table className="data">
           <tbody>
-            {rows.map(([k, v]) => (
-              <tr key={k}><th style={{ width: 140 }}>{k}</th><td>{v}</td></tr>
+            {rows.map(([k, v, field]) => (
+              <tr key={k}>
+                <th style={{ width: 140 }}>{k}</th>
+                <td
+                  className={hunted.has(field) ? "hunted" : undefined}
+                  title={hunted.has(field) ? "Filled by Start hunting" : undefined}
+                >{v}</td>
+              </tr>
             ))}
           </tbody>
         </table>
+        {hunted.size ? (
+          <p className="muted" style={{ marginTop: 8 }}>
+            <span className="hunted-dot" /> Cyan values were found by Start hunting.
+          </p>
+        ) : null}
       </div>
 
       <div className="panel">

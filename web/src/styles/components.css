@@ -173,3 +173,6 @@ label { display: block; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.88
 
 .flash { padding: 0.6rem 0.8rem; border-radius: var(--radius); margin-bottom: 1rem; background: rgba(34, 197, 94, 0.12); }
 .flash.err { background: rgba(239, 68, 68, 0.14); }
+
+.hunted { color: var(--cyan); }
+.hunted-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); margin-right: 6px; }

@@ -38,7 +38,7 @@ describe("Leads", () => {
     expect(screen.getByText("42")).toBeInTheDocument();
   });
 
-  it("runs the Lead Completion Agent via the Enrich button", async () => {
+  it("runs the Lead Completion Agent via the Start hunting button", async () => {
     vi.spyOn(leadsApi, "fetchLeads").mockResolvedValue([]);
     const spy = vi.spyOn(leadsApi, "enrichLeads").mockResolvedValue({
       pipeline_run_id: "p1",
@@ -46,10 +46,10 @@ describe("Leads", () => {
       target_count: 3,
     });
     renderLeads();
-    const btn = await screen.findByRole("button", { name: /enrich leads/i });
+    const btn = await screen.findByRole("button", { name: /start hunting/i });
     fireEvent.click(btn);
     await waitFor(() => expect(spy).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText(/enrich started/i)).toBeInTheDocument();
+    expect(await screen.findByText(/hunt started/i)).toBeInTheDocument();
   });
 
   it("shows a research indicator on enriched leads", async () => {
@@ -59,5 +59,18 @@ describe("Leads", () => {
     renderLeads();
     expect(await screen.findByText("Acme")).toBeInTheDocument();
     expect(screen.getByTitle(/research/i)).toBeInTheDocument();
+  });
+
+  it("marks hunted fields in cyan in the table", async () => {
+    vi.spyOn(leadsApi, "fetchLeads").mockResolvedValue([
+      {
+        ...existingMockLead,
+        research: { summary: "s", status: "ok", sources: [], hunted_fields: ["industry"] },
+      },
+    ]);
+    renderLeads();
+    expect(await screen.findByText("Acme")).toBeInTheDocument();
+    expect(screen.getByText("Logistics").closest("td")).toHaveClass("hunted");
+    expect(screen.getByTitle(/hunted/i)).toBeInTheDocument();
   });
 });

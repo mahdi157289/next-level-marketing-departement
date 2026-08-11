@@ -25,6 +25,7 @@ export interface Lead {
     status?: string | null;
     queries?: string[] | null;
     fields_found?: Record<string, unknown> | null;
+    hunted_fields?: string[] | null;
     sources?: Array<{ title?: string | null; url?: string | null; snippet?: string | null }> | null;
   } | null;
   lead_score: number | null;
